@@ -1,67 +1,83 @@
 # Apple Health Pro 🍎
-## A Studio-Grade Data Engine for Apple Health Export.
+#### A Studio-Grade Data Engine for Apple Health Export.
+#### Apple Health Pro 是一款专为数据分析师、健康极客和开发者设计的跨平台桌面工具。它能够高效解析 Apple 健康导出的巨型 XML 压缩包，并将其转化为结构清晰、开箱即用的专业级数据集。
 
-### Apple Health Pro 是一款专为数据分析师、健康极客和开发者设计的跨平台桌面工具。它能够高效解析 Apple 健康导出的巨型 XML 压缩包，并将其转化为结构清晰、开箱即用的专业级 CSV 数据集。
+#### Apple Health Pro is a high-performance cross-platform desktop tool designed for data analysts, health enthusiasts, and developers. It efficiently parses massive Apple Health XML export archives and transforms them into organized, analysis-ready professional datasets.
 
-# ✨核心功能
-#### ⚡️高性能流式解析： 采用 iterparse 迭代技术，能够处理数 GB 级别的 export.xml 文件而不占用过多内存，告别程序崩溃。
+## ✨核心功能 (Core Features)
+#### ⚡️高性能流式解析 (High-Performance Parsing)
+采用 iterparse 空间优化技术。即使面对数 GB 级别的 export.xml，也能保证极低的内存占用，彻底告别程序崩溃。
+Utilizing iterparse space optimization. It ensures extremely low memory usage even with multi-GB export.xml files, eliminating system crashes.
 
-#### 🔍多维度来源过滤： 自动识别所有数据来源（Apple Watch、iPhone、各种第三方 App），支持用户按需勾选，精准提取目标数据。
+#### 🔍多维度来源过滤 (Multi-Dimensional Source Filtering)
+自动识别所有数据来源（包括 Apple Watch, iPhone 及第三方 App），支持用户按需选取特定来源进行精准提取，避免数据重复。
+Automatically identifies all data sources (including Apple Watch, iPhone, and 3rd-party apps), allowing users to select specific sources for precise extraction and avoid data duplication.
 
-#### 📦智能数据分类： 自动将凌乱的健康记录归纳为 7 大标准维度：
+#### 📦智能数据分类 (Intelligent Data Categorization)
+系统自动将原始记录映射至 7 大标准维度空间：
+The system automatically maps raw records into 7 standard dimensions:
 
-1、心脏指标 (Heart Metrics)
+维度编号 (ID)	维度名称 (Dimension)	包含指标 (Key Metrics)
 
-2、身体成分 (Body Composition)
+1	Heart Metrics	心率, 静息心率, HRV；
 
-3、活动与能量 (Activity & Energy)
+2	Body Composition	体重, BMI, 体脂率；
 
-4、睡眠分析 (Sleep Analysis)
+3	Activity & Energy	步数, 活动能量, 距离；
 
-5、步态与机能 (Mobility & Gait)
+4	Sleep Analysis	睡眠分期, 睡眠效率；
 
-6、生殖健康 (Reproductive Health)
+5	Mobility & Gait	步行速度, 步长；
 
-7、生命体征与呼吸 (Vitals & Respiratory)
+6	Reproductive Health	经期追踪, 排卵预测；
 
-#### 📊自动分块导出： 针对超大型数据集如分钟级心率，系统会自动按 80 万行/文件进行分块处理，确保 Excel 和各类 AI 应用能流畅打开。
+7	Vitals & Respiratory	血氧, 血压, 体温；
 
-# 🚀操作指南
-#### 1. 准备数据
-在 iPhone 上打开 “健康” App -> 点击右上角头像 -> 选择 “导出所有健康数据”。导出完成后，你会获得一个名为 导出.zip 的文件。
+#### 📊自动分块导出 (Automated Data Chunking)
+针对大规模时间序列数据（如分钟级心率），应用执行自动分片逻辑。当单文件超过 80 万行时自动拆分，确保 Excel 及各类 AI 模型可以流畅加载。
+For large-scale time-series data, the app executes auto-sharding. Files are automatically split when exceeding 800,000 rows, ensuring smooth loading in Excel and AI models.
 
-#### 2. 加载与索引
-打开 Apple Health Pro，点击底部的按钮 SELECT DATA ARCHIVE (.ZIP)。程序将自动扫描压缩包并索引所有数据源。
+## 🚀 操作指南 (Operation Guide)
+#### 准备数据 (Prepare Data)
+在 iPhone “健康” App 中点击头像 -> “导出所有健康数据”。获得 export.zip。
+Export data in the iPhone "Health" App via Profile -> "Export All Health Data" to obtain export.zip.
 
-#### 3. 选择来源
-在 IDENTIFIED SOURCES 列表中，勾选你想要提取的数据来源（例如仅选择 Apple Watch 的记录以排除手机重复计算）。默认状态为全不选。
+#### 加载与索引 (Load & Index)
+启动程序，点击 SELECT DATA ARCHIVE (.ZIP)。系统执行索引构建。
+Launch the app and click SELECT DATA ARCHIVE (.ZIP). The system builds the data index.
 
-#### 4. 执行导出
-点击 EXECUTE EXPORT。CSV 文件将自动生成在 export.zip 所在的同级目录下，并按分类命名。
+#### 选择来源 (Select Sources)
+在 IDENTIFIED SOURCES 列表中勾选目标源。默认状态为“全不选”。
+Check target sources in the IDENTIFIED SOURCES list. Default is set to deselect all.
 
-# 📥下载与安装
-无需配置 Python 环境，请直接前往 Releases 页面下载对应系统的安装程序。
+#### 执行导出 (Execute Export)
+点击 EXECUTE EXPORT。生成的 CSV 将存储于原压缩包同级目录。
+Click EXECUTE EXPORT. CSV files will be saved in the same directory as the source zip.
 
-Windows 用户： 下载 HealthPro_Setup_v8.2.0.exe 运行安装。
+#### 推荐的提示词 (Prompt)
+你是一名具备运动生理学、 心血管医学 和健康数据建模能力的专业分析师。我将提供Apple Health原始数据（CSV），请基于数据进行接近专业体检级别的分析，并严格按照以下结构输出：首先给出【一句话结论】，直接判断整体健康状态（健康 / 亚健康 / 风险状态），不得模糊；然后进行【生理系统拆解分析】，从心血管系统（心率、HRV、静息心率）、神经系统（基于HRV分析交感/副交感平衡）、睡眠恢复系统、代谢与活动水平四个层面分析，必须解释背后的生理机制而非表象；接着进行【趋势建模】，基于时间序列判断是否存在周期性波动、长期改善或恶化趋势
 
-macOS 用户： 下载 HealthPro_v8.2.0.dmg，将应用拖入 Applications 文件夹。
+You are a professional analyst with expertise in exercise physiology, cardiovascular medicine, and health data modeling. I will provide raw Apple Health data (CSV). Please conduct a professional, clinical-grade analysis based on this data, adhering strictly to the following structure:
 
-注意：由于未签名，初次运行请右键点击应用图标并选择“打开”。
+[One-Sentence Conclusion]: Provide a direct assessment of the overall health status (Healthy / Sub-healthy / At-risk) without ambiguity.
+[Physiological System Breakdown Analysis]: Analyze four key areas—the cardiovascular system (Heart Rate, HRV, Resting Heart Rate), the nervous system (Sympathetic/Parasympathetic balance based on HRV), the sleep recovery system, and metabolism/activity levels. You must explain the underlying physiological mechanisms rather than merely reporting surface-level observations.
+[Trend Modeling]: Based on time-series data, identify periodic fluctuations and determine whether there are long-term trends of improvement or deterioration.
 
-# 🛠开发与构建 (For Developers)
-如果你希望在本地运行或自行修改代码：
+## 📥下载与安装 (Installation)
+无需配置 Python 环境，直接下载构建完成的二进制包：
+No Python environment required. Download the pre-built binary packages directly:
 
-Bash
+#### Windows: HealthPro_Setup_v8.2.0.exe
 
-#### 克隆项目
-git clone https://github.com/leecdiang/Apple-Health-Pro.git
+#### macOS: HealthPro_v8.2.0.dmg
 
-#### 安装依赖
-pip install -r requirements.txt
+##### (注：macOS 初次运行请右键图标选择“打开” / Note: For macOS, right-click and select "Open" for the first launch)
 
-#### 运行程序
-python health_app.py
 
-# ⚖️ 许可说明 (License)
-本项目采用 MIT License 授权。
-© 2026 LEEcDiang. All rights reserved.
+## © 2026 LEEcDiang. All rights reserved.
+
+---
+### ✍️ About the Author
+I'm **LEEcDiang**, a developer passionate about health data and studio-grade tools. 
+If you find this tool helpful, check out more of my thoughts and tutorials on my blog:
+👉 [**leecdiang.github.io**]([https://leecdiang.github.io](https://leecdiang.github.io/myblog-source/))
