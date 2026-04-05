@@ -91,14 +91,18 @@ class ExportThread(QThread):
             filtered_df = self.df[self.df['sourcename'].isin(self.selected_sources)]
             out_dir = os.path.dirname(self.zip_path)
             
+            # [FIXED] Corrected indentation and used precision keywords to avoid data overlap
             groups = {
-                '1_Heart_Metrics': ['heartrate', 'resting', 'variability'],
-                '2_Body_Composition': ['mass', 'bmi', 'fat', 'leanbody'],
-                '3_Activity_Energy': ['step', 'energy', 'distance', 'flights'],
-                '4_Sleep_Analysis': ['sleep'],
-                '5_Mobility_Gait': ['walkingspeed', 'steplength', 'asymmetry', 'support'],
+                '1_Heart_Metrics': ['heartrate', 'restingheartrate', 'heartratevariability'],
+                '2_Body_Composition': ['bodymass', 'bmi', 'bodyfat', 'leanbodymass'],
+                '3_Activity_Energy': ['stepcount', 'activeenergy', 'basalenergy', 'distance', 'flights'],
+                '4_Sleep_Analysis': ['sleepanalysis'],
+                '5_Mobility_Gait': ['walkingspeed', 'steplength', 'asymmetry', 'support', 'steadiness'],
                 '6_Reproductive_Health': ['menstrual', 'ovulation', 'cervical'],
-                '7_Vitals_Respiratory': ['oxygen', 'respiratory', 'temperature', 'bloodpressure']
+                '7_Vitals_Respiratory': ['oxygensaturation', 'respiratoryrate', 'bodytemperature', 'bloodpressure'],
+                '8_Running_Dynamics': ['runningpower', 'verticaloscillation', 'groundcontact', 'runningstridelength', 'runningspeed'],
+                '9_Cycling_Performance': ['cyclingpower', 'cadence', 'cyclingspeed', 'functionalthreshold'],
+                '10_Swimming_Water_Stats': ['swimming', 'strokecount', 'underwater', 'watertemperature']
             }
 
             for base_name, keys in groups.items():
@@ -127,8 +131,8 @@ class ExportThread(QThread):
 
             self.log_sig.emit(f"\n🎉 ALL OPERATIONS COMPLETE.\nSaved at: {out_dir}")
             self.done_sig.emit()
-        except Exception as e: self.log_sig.emit(f"❌ EXPORT FAILED: {str(e)}")
-
+        except Exception as e: 
+            self.log_sig.emit(f"❌ EXPORT FAILED: {str(e)}")
 # ==========================================
 # 2. Studio-Grade UI (Cranberry Unified)
 # ==========================================
