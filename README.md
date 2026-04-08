@@ -70,7 +70,9 @@ No Python environment required. Download the pre-built binary packages directly:
 
 #### Windows: HealthPro_Setup_v8.2.0.exe
 
-#### macOS: HealthPro_v8.2.0.dmg
+#### macOS: HealthPro_v8.2.0.dmg（Apple Silicon）
+
+#### macOS: HealthPro_v8.4.0_macOS_IntelChip.dmg （Intel CPU）
 
 ##### (注：macOS 初次运行请右键图标选择“打开” / Note: For macOS, right-click and select "Open" for the first launch)
 
