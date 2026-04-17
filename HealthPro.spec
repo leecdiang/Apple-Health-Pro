@@ -53,7 +53,7 @@ app = BUNDLE(
     info_plist={
         'NSPrincipalClass': 'NSApplication',
         'NSAppleScriptEnabled': False,
-        'CFBundleShortVersionString': '8.4.0',
+        'CFBundleShortVersionString': '8.5.0',
         'CFBundleVersion': '1',
         'NSHumanReadableCopyright': 'Copyright © 2026 LEEcDiang. All rights reserved.'
     },

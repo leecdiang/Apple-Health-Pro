@@ -31,6 +31,16 @@ class CleanStream:
 # ==========================================
 # 1. High-Performance Core Engine
 # ==========================================
+import os
+import sys
+import psutil
+import gc
+import math
+import zipfile
+import pandas as pd
+import xml.etree.ElementTree as ET
+from PyQt6.QtCore import QThread, pyqtSignal
+
 class ParseThread(QThread):
     log_sig = pyqtSignal(str)
     done_sig = pyqtSignal(object, list, str)
@@ -44,43 +54,76 @@ class ParseThread(QThread):
         try:
             self.log_sig.emit("🔍 INITIALIZING: Scanning ZIP architecture...")
             with zipfile.ZipFile(self.zip_path, 'r') as zip_ref:
-                xml_filename = None
-                all_files = zip_ref.namelist()
                 
-                # Fix encoding for non-ASCII filenames inside ZIP
-                for name in all_files:
+                # 🟢 升级一：“防弹”体积嗅探算法
+                xml_filename = None
+                max_size = 0
+                
+                for info in zip_ref.infolist():
+                    name = info.filename
+                    # 过滤掉非 XML 文件和无关的临床小文件
+                    if not name.lower().endswith('.xml') or name.lower().endswith('export_cda.xml'):
+                        continue
+
+                    # 尝试解码用于日志友好显示和比对
                     try: decoded_name = name.encode('cp437').decode('utf-8')
                     except:
                         try: decoded_name = name.encode('cp437').decode('gbk')
                         except: decoded_name = name
 
                     base_name = os.path.basename(decoded_name).lower()
-                    if base_name in ["export.xml", "导出.xml"]:
-                        xml_filename = name 
-                        self.log_sig.emit(f"🚀 SOURCE DETECTED: {decoded_name}")
+                    
+                    # 策略 A：精确狙击 (加入繁体等更多语言容错)
+                    if base_name in ["export.xml", "导出.xml", "輸出.xml"]:
+                        xml_filename = name
+                        self.log_sig.emit(f"🚀 SOURCE DETECTED (Name Match): {decoded_name}")
                         break
-                
+                    
+                    # 策略 B：体积嗅探 (如果名字因为极端乱码没认出来，找最大的那个 XML)
+                    if info.file_size > max_size:
+                        max_size = info.file_size
+                        xml_filename = name
+                        
                 if not xml_filename:
-                    self.err_sig.emit("CRITICAL: 'export.xml' not found in ZIP.")
+                    self.err_sig.emit("CRITICAL: No valid health data XML found in the provided ZIP archive. Please ensure this is an official Apple Health export.")
                     return
+                else:
+                    # 如果是通过策略 B 找到的，补打一条日志说明情况
+                    if max_size > 0 and base_name not in ["export.xml", "导出.xml", "輸出.xml"]:
+                        self.log_sig.emit(f"🚀 SOURCE DETECTED (Size Match): Found largest XML file ({max_size / 1024 / 1024:.2f} MB)")
 
                 attribute_list = []
                 with zip_ref.open(xml_filename) as f:
-                    clean_stream = CleanStream(f)
+                    clean_stream = CleanStream(f) # 假设 CleanStream 已经定义在外部
                     context = ET.iterparse(clean_stream, events=('end',))
                     try:
                         event, root = next(context)
                         count = 0
                         for event, elem in context:
-                            if elem.tag == 'Record':
-                                sn = elem.attrib.get('sourceName')
+                            
+                            # 🟢 升级二：双标签解析引擎，同时监听 Record 和 Workout
+                            if elem.tag in ['Record', 'Workout']:
+                                if elem.tag == 'Record':
+                                    sn = elem.attrib.get('sourceName')
+                                    tp = elem.attrib.get('type', '')
+                                    val = elem.attrib.get('value', '')
+                                    unit = elem.attrib.get('unit', '')
+                                    sdate = elem.attrib.get('startDate', '')
+                                else:
+                                    # 处理 Workout (体能训练) 标签的专属属性
+                                    sn = elem.attrib.get('sourceName')
+                                    tp = elem.attrib.get('workoutActivityType', 'Workout')
+                                    val = elem.attrib.get('duration', '')
+                                    unit = elem.attrib.get('durationUnit', 'min')
+                                    sdate = elem.attrib.get('startDate', '')
+
                                 if sn:
-                                    # 🟢 终极内存优化：使用 C 语言底层的 sys.intern() 极速去重高频词
+                                    # 继续保留 C 语言底层的 sys.intern() 极速去重高频词
                                     attribute_list.append({
-                                        'type': sys.intern(str(elem.attrib.get('type', ''))),
-                                        'value': elem.attrib.get('value', ''), 
-                                        'unit': sys.intern(str(elem.attrib.get('unit', ''))),
-                                        'startdate': elem.attrib.get('startDate', ''),
+                                        'type': sys.intern(str(tp)),
+                                        'value': val, 
+                                        'unit': sys.intern(str(unit)),
+                                        'startdate': sdate,
                                         'sourcename': sys.intern(str(sn))
                                     })
                                     count += 1
@@ -122,17 +165,41 @@ class ExportThread(QThread):
             out_dir = os.path.dirname(self.zip_path)
             
             # 🔵 10 大医疗/运动级精准维度词根
+            # 🔵 Apple Health Pro v8.5.0：终极 15 大医疗与运动维度词库
             groups = {
-                '1_Heart_Metrics': ['heartrate', 'restingheartrate', 'heartratevariability'],
-                '2_Body_Composition': ['bodymass', 'bmi', 'bodyfat', 'leanbodymass'],
-                '3_Activity_Energy': ['stepcount', 'activeenergy', 'basalenergy', 'distance', 'flights'],
-                '4_Sleep_Analysis': ['sleepanalysis'],
+                # 1. 核心心血管 (涵盖日常与基础心率)
+                '1_Heart_Cardio': ['heartrate', 'restingheartrate', 'heartratevariability', 'walkingheartrateaverage'], 
+                # 2. 身体成分 (新增你提到的 身体水分/含水量)
+                '2_Body_Metrics': ['bodymass', 'bmi', 'bodyfat', 'leanbodymass', 'bodywatermass'], 
+                # 3. 日常基础消耗 (步数、静息消耗)
+                '3_Daily_Activity': ['stepcount', 'activeenergy', 'basalenergy', 'distance', 'flights'],
+                # 4. 睡眠与恢复
+                '4_Sleep_Recovery': ['sleepanalysis'],
+                # 5. 步态与行动力 (防跌倒、中风预警指标)
                 '5_Mobility_Gait': ['walkingspeed', 'steplength', 'asymmetry', 'support', 'steadiness'],
-                '6_Reproductive_Health': ['menstrual', 'ovulation', 'cervical'],
+                # 6. 生殖与生理健康
+                '6_Reproductive': ['menstrual', 'ovulation', 'cervical'],
+                # 7. 生命体征
                 '7_Vitals_Respiratory': ['oxygensaturation', 'respiratoryrate', 'bodytemperature', 'bloodpressure'],
+                # 8. 跑步硬核动态
                 '8_Running_Dynamics': ['runningpower', 'verticaloscillation', 'groundcontact', 'runningstridelength', 'runningspeed'],
-                '9_Cycling_Performance': ['cyclingpower', 'cadence', 'cyclingspeed', 'functionalthreshold'],
-                '10_Swimming_Water_Stats': ['swimming', 'strokecount', 'underwater', 'watertemperature']
+                # 9. 骑行表现
+                '9_Cycling_Stats': ['cyclingpower', 'cadence', 'cyclingspeed', 'functionalthreshold'],
+                # 10. 游泳与水域
+                '10_Swimming_Water': ['swimming', 'strokecount', 'underwater', 'watertemperature'],
+                
+                # 👇👇👇 以下为本次听取用户建议后，新增的 5 大维度 👇👇👇
+                
+                # 11. 通用体能训练 (极大扩充！囊括力量训练、瑜伽、HIIT等所有手动开启的运动)
+                '11_Workouts_Training': ['workout', 'hkworkout', 'running', 'walking', 'cycling', 'strength'],
+                # 12. 环境与感官 (新增你提到的 日照时间，以及耳机环境音量)
+                '12_Environment_Senses': ['timeindaylight', 'environmentalaudio', 'headphoneaudio'], 
+                # 13. 营养与摄入 (饮食、碳水、蛋白质、饮水、咖啡因打卡)
+                '13_Nutrition_Hydration': ['dietary', 'water', 'caffeine'],
+                # 14. 心理状态与正念 (苹果最新的情绪追踪和冥想数据)
+                '14_Mindfulness_Mental': ['mindful', 'stateofmind'],
+                # 15. 症状与病史 (头痛、咳嗽、疲劳等手动打卡的症状记录)
+                '15_Symptoms_Illness': ['symptom'] 
             }
 
             for base_name, keys in groups.items():
@@ -171,7 +238,13 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.is_dark = False
         self.setWindowTitle("Apple Health Pro")
-        self.setFixedSize(850, 850)
+        
+        # 🟢 核心修复：干掉 setFixedSize，改为弹性自适应！
+        # 1. 设定最小安全边界（保证里面的按钮、文本框不会因为缩得太小而挤压重叠）
+        self.setMinimumSize(500, 550) 
+        # 2. 设定默认打开时的舒适大小（兼顾大屏和小屏用户的初始观感）
+        self.resize(800, 750)         
+        
         self.init_ui()
         self.update_theme()
 
