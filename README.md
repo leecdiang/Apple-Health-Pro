@@ -83,9 +83,9 @@ No Python environment required. Download the pre-built binary packages directly:
 
 ##### (注：macOS 初次运行请右键图标选择”打开” / Note: For macOS, right-click and select “Open” for the first launch)
 
-#### Linux: HealthPro-8.4.0-x86_64.AppImage (通用 / Universal)
+#### Linux: HealthPro-8.5.0-x86_64.AppImage (通用 / Universal)
 
-#### Linux: healthpro_8.4.0_amd64.deb (Debian / Ubuntu)
+#### Linux: healthpro_8.5.0_amd64.deb (Debian / Ubuntu)
 
 ```bash
 # AppImage — 下载即用 / Download and run directly
@@ -96,7 +96,12 @@ chmod +x HealthPro-8.4.0-x86_64.AppImage
 sudo dpkg -i healthpro_8.4.0_amd64.deb
 sudo apt-get install -f   # 自动修复依赖 / Fix dependencies if needed
 ```
+## 🙏 Acknowledgements / 鸣谢
 
+This project exists thanks to all the people who contribute. Special thanks to the following developers for their outstanding contributions to Apple Health Pro:
+特别感谢以下开发者对本项目的杰出贡献：
+
+* **[@CybDnb](https://github.com/CybDnb)** - For building the Linux native support (AppImage & deb) and the automated CI/CD packaging pipeline. (为本项目构建了完整的 Linux 原生支持与自动化打包流水线。)
 
 ## © 2026 LEEcDiang. All rights reserved.
 
