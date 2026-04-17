@@ -16,25 +16,27 @@ Utilizing iterparse space optimization. It ensures extremely low memory usage ev
 自动识别所有数据来源（包括 Apple Watch, iPhone 及第三方 App），支持用户按需选取特定来源进行精准提取，避免数据重复。
 Automatically identifies all data sources (including Apple Watch, iPhone, and 3rd-party apps), allowing users to select specific sources for precise extraction and avoid data duplication.
 
-#### 📦智能数据分类 (Intelligent Data Categorization)
-系统自动将原始记录映射至 7 大标准维度空间：
-The system automatically maps raw records into 7 standard dimensions:
+#### 📊 Supported Data Dimensions (支持导出的 15 大数据维度)
 
-维度编号 (ID)	维度名称 (Dimension)	包含指标 (Key Metrics)
+Apple Health Pro v8.5.0 utilizes a dual-tag parsing engine to seamlessly extract both raw data points (`Record`) and functional training logs (`Workout`), categorized into 15 professional dimensions:
 
-1	Heart Metrics	心率, 静息心率, HRV；
-
-2	Body Composition	体重, BMI, 体脂率；
-
-3	Activity & Energy	步数, 活动能量, 距离；
-
-4	Sleep Analysis	睡眠分期, 睡眠效率；
-
-5	Mobility & Gait	步行速度, 步长；
-
-6	Reproductive Health	经期追踪, 排卵预测；
-
-7	Vitals & Respiratory	血氧, 血压, 体温；
+| 分类序号 | 维度名称 (Category) | 导出文件名 (Exported CSV) | 核心指标涵盖 (Key Metrics Included) |
+| :---: | :--- | :--- | :--- |
+| **01** | **核心心血管** (Heart & Cardio) | `1_Heart_Cardio.csv` | 心率、静息心率、HRV (心率变异性)、步行平均心率 |
+| **02** | **身体成分** (Body Metrics) | `2_Body_Metrics.csv` | 体重、BMI、体脂率、瘦体重、身体水分 |
+| **03** | **日常基础消耗** (Daily Activity) | `3_Daily_Activity.csv` | 步数、活动能量消耗、静息能量消耗、步行距离、爬楼层数 |
+| **04** | **睡眠与恢复** (Sleep Recovery) | `4_Sleep_Recovery.csv` | 睡眠分析 (核心、深度、快速动眼、清醒等状态) |
+| **05** | **步态与行动力** (Mobility & Gait) | `5_Mobility_Gait.csv` | 步行速度、步长、不对称性、双足支撑时间、步态稳定性 |
+| **06** | **生殖与生理健康** (Reproductive) | `6_Reproductive.csv` | 经期记录、排卵测试结果、宫颈粘液质量 |
+| **07** | **生命体征** (Vitals & Respiratory)| `7_Vitals_Respiratory.csv`| 血氧饱和度、呼吸率、体温、血压 |
+| **08** | **跑步硬核动态** (Running Dynamics) | `8_Running_Dynamics.csv` | 跑步功率、垂直振幅、触地时间、跑步步幅、跑步速度 |
+| **09** | **骑行表现** (Cycling Stats) | `9_Cycling_Stats.csv` | 骑行功率、踏频、骑行速度、功能性阈值功率 (FTP) |
+| **10** | **游泳与水域** (Swimming & Water) | `10_Swimming_Water.csv` | 游泳距离、划水次数、水下深度、水温 |
+| **11** | **通用体能训练** (Workouts & Training)| `11_Workouts_Training.csv`| 力量训练、瑜伽、HIIT、传统跑/骑/游等所有手动开启的运动记录 |
+| **12** | **环境与感官** (Environment & Senses)| `12_Environment_Senses.csv`| 日照时间、环境音量暴露、耳机音量暴露 |
+| **13** | **营养与摄入** (Nutrition & Hydration)| `13_Nutrition_Hydration.csv`| 膳食能量、碳水、蛋白质、饮水量、咖啡因摄入 |
+| **14** | **心理状态与正念** (Mindfulness & Mental)| `14_Mindfulness_Mental.csv`| 心理状态打卡、情绪追踪、正念冥想时间 |
+| **15** | **症状与病史** (Symptoms & Illness)| `15_Symptoms_Illness.csv` | 头痛、咳嗽、疲劳等手动打卡的各类症状记录 |
 
 #### 📊自动分块导出 (Automated Data Chunking)
 针对大规模时间序列数据（如分钟级心率），应用执行自动分片逻辑。当单文件超过 80 万行时自动拆分，确保 Excel 及各类 AI 模型可以流畅加载。
@@ -73,11 +75,11 @@ You are a professional analyst with expertise in exercise physiology, cardiovasc
 无需配置 Python 环境，直接下载构建完成的二进制包：
 No Python environment required. Download the pre-built binary packages directly:
 
-#### Windows: HealthPro_Setup_v8.2.0.exe
+#### Windows: HealthPro_Setup_v8.5.0.exe
 
-#### macOS: HealthPro_v8.2.0.dmg（Apple Silicon）
+#### macOS: HealthPro_v8.5.0.dmg（Apple Silicon）
 
-#### macOS: HealthPro_v8.4.0_macOS_IntelChip.dmg （Intel CPU）
+#### macOS: HealthPro_v8.5.0_macOS_IntelChip.dmg （Intel CPU）
 
 ##### (注：macOS 初次运行请右键图标选择“打开” / Note: For macOS, right-click and select "Open" for the first launch)
 
