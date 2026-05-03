@@ -5,7 +5,8 @@
 
 #### Apple Health Pro is a high-performance cross-platform desktop tool designed for data analysts, health enthusiasts, and developers. It efficiently parses massive Apple Health XML export archives and transforms them into organized, analysis-ready professional datasets.
 
-<img width="850" height="878" alt="image" src="https://github.com/user-attachments/assets/e665bf0c-7272-40ce-9183-927bac3cb543" />
+<img width="2100" height="1470" alt="f6e64d54b3fd948b4056e26633b90fcf" src="https://github.com/user-attachments/assets/0d9d14c2-97ff-463b-90c4-258ccfa0df4f" />
+
 
 ## ✨核心功能 (Core Features)
 #### ⚡️高性能流式解析 (High-Performance Parsing)
@@ -16,7 +17,21 @@ Utilizing iterparse space optimization. It ensures extremely low memory usage ev
 自动识别所有数据来源（包括 Apple Watch, iPhone 及第三方 App），支持用户按需选取特定来源进行精准提取，避免数据重复。
 Automatically identifies all data sources (including Apple Watch, iPhone, and 3rd-party apps), allowing users to select specific sources for precise extraction and avoid data duplication.
 
-#### 📊 Supported Data Dimensions (支持导出的 15 大数据维度)
+#### 🔒设备名称覆盖与隐私脱敏 (Device Name Anonymization & Privacy Shield)
+开启隐私保护模式后，应用将自动抹除包含个人信息的硬件原始名称（如“某某的 Apple Watch”），并替换为标准化的专属匿名标签，全方位保障数据对外分享与分析的安全性。
+Enable the privacy shield mode to automatically scrub original hardware device names containing personal information (e.g., "John's Apple Watch") and replace them with standardized anonymous tags, fully ensuring the security of data sharing and analysis.
+
+#### 🕰数据日期区间智能筛选 (Smart Date Range Filtering)
+引擎会在导入瞬间极速嗅探并自动填报数据的真实起止时间。结合全新设计的纯文本约束化输入框，用户可以极其高效、精准地截取并导出特定时间段内的健康记录。
+The engine rapidly detects and auto-fills the true start and end dates of your data upon import. Combined with a newly designed masked text input, users can highly efficiently and precisely extract health records within any specific timeframe.
+
+#### 📊自动分块导出 (Automated Data Chunking)
+针对大规模时间序列数据（如分钟级心率），应用执行自动分片逻辑。当单文件超过 80 万行时自动拆分，确保 Excel 及各类 AI 模型可以流畅加载。
+For large-scale time-series data, the app executes auto-sharding. Files are automatically split when exceeding 800,000 rows, ensuring smooth loading in Excel and AI models.
+
+---
+
+### Supported Data Dimensions (支持导出的 15 大数据维度)
 
 Apple Health Pro v8.5.0 utilizes a dual-tag parsing engine to seamlessly extract both raw data points (`Record`) and functional training logs (`Workout`), categorized into 15 professional dimensions:
 
@@ -38,9 +53,7 @@ Apple Health Pro v8.5.0 utilizes a dual-tag parsing engine to seamlessly extract
 | **14** | **心理状态与正念** (Mindfulness & Mental)| `14_Mindfulness_Mental.csv`| 心理状态打卡、情绪追踪、正念冥想时间 |
 | **15** | **症状与病史** (Symptoms & Illness)| `15_Symptoms_Illness.csv` | 头痛、咳嗽、疲劳等手动打卡的各类症状记录 |
 
-#### 📊自动分块导出 (Automated Data Chunking)
-针对大规模时间序列数据（如分钟级心率），应用执行自动分片逻辑。当单文件超过 80 万行时自动拆分，确保 Excel 及各类 AI 模型可以流畅加载。
-For large-scale time-series data, the app executes auto-sharding. Files are automatically split when exceeding 800,000 rows, ensuring smooth loading in Excel and AI models.
+---
 
 ## 🚀 操作指南 (Operation Guide)
 #### 准备数据 (Prepare Data)
@@ -48,17 +61,27 @@ For large-scale time-series data, the app executes auto-sharding. Files are auto
 Export data in the iPhone "Health" App via Profile -> "Export All Health Data" to obtain export.zip.
 <img width="1179" height="563" alt="image" src="https://github.com/user-attachments/assets/9eead494-93f8-4040-9ac5-8d38b6a02fe1" />
 
-#### 加载与索引 (Load & Index)
+#### 1、📚加载与索引 (Load & Index)
 启动程序，点击 SELECT DATA ARCHIVE (.ZIP)。系统执行索引构建。
 Launch the app and click SELECT DATA ARCHIVE (.ZIP). The system builds the data index.
 
-#### 选择来源 (Select Sources)
+#### 2、🔍选择来源 (Select Sources)
 在 IDENTIFIED SOURCES 列表中勾选目标源。默认状态为“全不选”。
 Check target sources in the IDENTIFIED SOURCES list. Default is set to deselect all.
 
-#### 执行导出 (Execute Export)
+#### 3、🗓选择日期区间 (Select Date Range)
+系统已自动填报该数据包的真实起止时间。如有需要，可直接在文本框中输入修改，以精准截取特定时间段。
+The system automatically fills in the true start and end dates of the archive. You can directly edit the text fields to precisely extract a specific timeframe if needed.
+
+#### 4、🔒开启隐私脱敏 (Enable Privacy Shield)
+（可选）勾选 Mask Device Names 选项，应用将自动抹除并匿名化原始硬件名称，全方位保护您的隐私安全。
+(Optional) Check the Mask Device Names option to automatically scrub and anonymize original hardware names for comprehensive privacy protection.
+
+#### 5、☑️执行导出 (Execute Export)
 点击 EXECUTE EXPORT。生成的 CSV 将存储于原压缩包同级目录。
 Click EXECUTE EXPORT. CSV files will be saved in the same directory as the source zip.
+
+---
 
 #### 推荐的提示词 (Prompt)
 你是一名具备运动生理学、 心血管医学 和健康数据建模能力的专业分析师。我将提供Apple Health原始数据（CSV），请基于数据进行接近专业体检级别的分析，并严格按照以下结构输出：首先给出【一句话结论】，直接判断整体健康状态（健康 / 亚健康 / 风险状态），不得模糊；然后进行【生理系统拆解分析】，从心血管系统（心率、HRV、静息心率）、神经系统（基于HRV分析交感/副交感平衡）、睡眠恢复系统、代谢与活动水平四个层面分析，必须解释背后的生理机制而非表象；接着进行【趋势建模】，基于时间序列判断是否存在周期性波动、长期改善或恶化趋势
@@ -70,6 +93,7 @@ You are a professional analyst with expertise in exercise physiology, cardiovasc
 [Trend Modeling]: Based on time-series data, identify periodic fluctuations and determine whether there are long-term trends of improvement or deterioration.
 <img width="2442" height="1804" alt="image" src="https://github.com/user-attachments/assets/1658d1ca-fdeb-4142-9187-0a0a14b010c2" />
 
+---
 
 ## 📥下载与安装 (Installation)
 无需配置 Python 环境，直接下载构建完成的二进制包：
