@@ -6,15 +6,20 @@
 # ============================================================
 set -euo pipefail
 
-VERSION="${1:-8.4.0}"
+VERSION_INPUT="${1:-}"
 ARCH="amd64"
 PKG_NAME="healthpro"
-PKG_DIR="build/${PKG_NAME}_${VERSION}_${ARCH}"
+PKG_DIR=""
 DIST_DIR="dist/healthpro"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${PROJECT_ROOT}"
+VERSION="$(python3 -c 'from healthpro import __version__; print(__version__)')"
+if [ -n "${VERSION_INPUT}" ] && [ "${VERSION_INPUT}" != "${VERSION}" ]; then
+    echo "Version must match healthpro/version.txt (${VERSION})" >&2
+    exit 1
+fi
 
 # ----------------------------------------------------------
 # Step 1: Build binary with PyInstaller (if not already built)
@@ -25,6 +30,8 @@ if [ ! -d "${DIST_DIR}" ]; then
     pyinstaller HealthPro_linux.spec --clean --noconfirm
 fi
 
+VERSION="${VERSION/rc/~rc}"
+PKG_DIR="build/${PKG_NAME}_${VERSION}_${ARCH}"
 echo "📦 Packaging .deb v${VERSION}..."
 
 # ----------------------------------------------------------
@@ -112,3 +119,4 @@ echo ""
 echo "Install with:"
 echo "   sudo dpkg -i ${DEB_FILE}"
 echo "   sudo apt-get install -f   # fix dependencies if needed"
+

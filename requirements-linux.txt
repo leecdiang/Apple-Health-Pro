@@ -1,16 +1,2 @@
-altgraph==0.17.5
-lxml==6.0.2
-numpy==2.4.4
-packaging==26.0
-pandas==3.0.2
-pefile==2024.8.26
-pyinstaller==6.19.0
-pyinstaller-hooks-contrib==2026.4
-PyQt6==6.11.0
-PyQt6-Qt6==6.11.0
-PyQt6_sip==13.11.1
-python-dateutil==2.9.0.post0
-setuptools==82.0.1
-six==1.17.0
-tzdata==2026.1
-psutil==6.1.1
+# Compatibility entry point for Linux build scripts.
+-r requirements-build.txt

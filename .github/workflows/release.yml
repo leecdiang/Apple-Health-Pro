@@ -1,0 +1,131 @@
+name: Build and Publish Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Approved version matching healthpro/version.txt'
+        required: true
+        default: '8.8.0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-26
+            platform: macOS_AppleSilicon
+          - os: macos-26-intel
+            platform: macOS_Intel
+          - os: windows-latest
+            platform: Windows
+          - os: ubuntu-22.04
+            platform: Linux
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      QT_QPA_PLATFORM: offscreen
+      RELEASE_VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Validate release version
+        run: |
+          python - <<'PY'
+          import os, re
+          from healthpro import __version__
+          assert re.fullmatch(r'\d+\.\d+\.\d+', __version__)
+          assert __version__ == os.environ['RELEASE_VERSION']
+          PY
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcb-xinerama0 libxcb-cursor0 libxkbcommon0 libgl1-mesa-dev libegl1 libfuse2 desktop-file-utils
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+      - name: Build application
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            python -m PyInstaller HealthPro_linux.spec --noconfirm
+          else
+            python -m PyInstaller HealthPro.spec --noconfirm
+          fi
+      - name: Frozen application smoke
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          executable = {'Linux':'dist/healthpro/healthpro', 'Windows':'dist/HealthPro/HealthPro.exe', 'macOS':'dist/HealthPro.app/Contents/MacOS/HealthPro'}[os.environ['RUNNER_OS']]
+          subprocess.run([executable, '--smoke-test', 'smoke.json'], check=True, timeout=60)
+          report = json.load(open('smoke.json'))
+          assert report['success'] and report['indexed'] == report['exported'] == 217
+          PY
+      - name: Package macOS
+        if: runner.os == 'macOS'
+        env:
+          PACKAGE_PLATFORM: ${{ matrix.platform }}
+        run: |
+          codesign --verify --deep --strict dist/HealthPro.app
+          mkdir -p release dmg-stage
+          cp -R dist/HealthPro.app dmg-stage/
+          ln -s /Applications dmg-stage/Applications
+          hdiutil create -volname HealthPro -srcfolder dmg-stage -ov -format UDZO "release/HealthPro_v${RELEASE_VERSION}_${PACKAGE_PLATFORM}.dmg"
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" HealthPro.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force release
+          Copy-Item dist/installer/*.exe release/
+      - name: Package Linux
+        if: runner.os == 'Linux'
+        run: |
+          bash linux/build_deb.sh
+          bash linux/build_appimage.sh
+          mkdir -p release
+          cp build/healthpro_*.deb dist/HealthPro-*.AppImage release/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}
+          path: release/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: smoke-${{ matrix.platform }}
+          path: smoke.json
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release
+      - name: Create checksums and publish
+        run: |
+          cd release
+          sha256sum * > SHA256SUMS.txt
+          cd ..
+          gh release create "v${RELEASE_VERSION}" release/* --target "$GITHUB_SHA" --title "Apple Health Pro v${RELEASE_VERSION}" --notes-file "docs/release-${RELEASE_VERSION}.md" --latest

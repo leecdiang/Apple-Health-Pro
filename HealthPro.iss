@@ -3,7 +3,9 @@
 ; Non-commercial use only
 
 #define MyAppName "HealthPro"
-#define MyAppVersion "8.2.0"
+#define VersionHandle FileOpen("healthpro\version.txt")
+#define MyAppVersion Trim(FileRead(VersionHandle))
+#expr FileClose(VersionHandle)
 #define MyAppPublisher "LEEcDiang,UESTC"
 #define MyAppURL "https://leecdiang.github.io/myblog-source/"
 #define MyAppExeName "HealthPro.exe"
@@ -32,9 +34,9 @@ ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
 ; Remove the following line to run in administrative install mode (install for all users).
 PrivilegesRequired=lowest
-OutputDir=M:\AppleHealthApp
-OutputBaseFilename=HealthPro_Setup_v8.2.0
-SetupIconFile=M:\AppleHealthApp\icon.ico
+OutputDir=dist\installer
+OutputBaseFilename=HealthPro_Setup_v{#MyAppVersion}
+SetupIconFile=icon.ico
 SolidCompression=yes
 WizardStyle=modern windows11
 
@@ -45,8 +47,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "M:\AppleHealthApp\dist\HealthPro\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "M:\AppleHealthApp\dist\HealthPro\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\HealthPro\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\HealthPro\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
@@ -55,4 +57,5 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
 

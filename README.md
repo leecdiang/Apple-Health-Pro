@@ -1,136 +1,103 @@
-# Apple Health Pro 🍎 [![Downloads](https://img.shields.io/github/downloads/leecdiang/Apple-Health-Pro/total?style=for-the-badge&color=9B2C2C)](https://github.com/leecdiang/Apple-Health-Pro/releases)
+# Apple Health Pro
 
-#### A Studio-Grade Data Engine for Apple Health Export.
-#### Apple Health Pro 是一款专为数据分析师、健康极客和开发者设计的跨平台桌面工具。它能够高效解析 Apple 健康导出的巨型 XML 压缩包，并将其转化为结构清晰、开箱即用的专业级数据集。
+A local desktop tool for turning Apple Health export ZIPs into categorized CSV files.
+本地处理 Apple 健康导出数据，按来源、日期与指标分类生成 CSV。
 
-#### Apple Health Pro is a high-performance cross-platform desktop tool designed for data analysts, health enthusiasts, and developers. It efficiently parses massive Apple Health XML export archives and transforms them into organized, analysis-ready professional datasets.
+## v8.8.0
 
-<img width="1050" height="650" alt="image" src="https://github.com/user-attachments/assets/e4e46813-0b45-4035-836b-e88178551b42" />
+[下载正式版](https://github.com/leecdiang/Apple-Health-Pro/releases/latest) · [更新记录](CHANGELOG.md)
 
+- 保留原始 `startdate` / `enddate`、时区、数值与单位，补充运动持续时间及可用统计字段。
+- 两遍流式处理：首次扫描仅建立来源/日期/类型统计，导出时重新扫描并逐条写入。内存随不同来源、类型和最大单条记录大小变化，不保留全量 DataFrame。
+- 完整检查 XML；损坏、截断、无效时间或空数据不会显示为成功。
+- 完整 identifier 映射到唯一主分类；未知 Record 类型保留到 `16_Other_Unmapped`，计数可查。
+- 每次导出创建独立目录，全部文件写完并生成清单后才发布。失败/取消会清理该次临时目录，不覆盖已有结果。
+- 可取消的单任务 GUI；关闭窗口会等待任务停止与临时文件清理。
+- 恢复公开版的 CPU / 内存小圆环和阶段配色进度转盘；资源每 1.5 秒非阻塞采样，空闲不播放动画。
+- 精简主界面，更多导出选项与说明折叠；启动时跟随系统外观，右上角小按钮一键切换深色与浅色。
+- macOS 使用原生文件选择 sheet 导入 ZIP 和选择输出文件夹；日历采用圆角弹出面板，支持年月选择、方向键与 Escape。导出按钮在禁用和可点击状态下均保持胶囊圆角。
+- macOS 26+ 使用 AppKit NSGlassEffectView，较早版本回退到 NSVisualEffectView；其他平台采用不透明材质。系统“降低透明度”“增强对比度”“减少动态效果”即时生效。
 
-## ✨核心功能 (Core Features)
-#### ⚡️高性能流式解析 (High-Performance Parsing)
-采用 iterparse 空间优化技术。即使面对数 GB 级别的 export.xml，也能保证极低的内存占用，彻底告别程序崩溃。
-Utilizing iterparse space optimization. It ensures extremely low memory usage even with multi-GB export.xml files, eliminating system crashes.
+## 使用
 
-#### 🔍多维度来源过滤 (Multi-Dimensional Source Filtering)
-自动识别所有数据来源（包括 Apple Watch, iPhone 及第三方 App），支持用户按需选取特定来源进行精准提取，避免数据重复。
-Automatically identifies all data sources (including Apple Watch, iPhone, and 3rd-party apps), allowing users to select specific sources for precise extraction and avoid data duplication.
+1. 在 iPhone 健康 App 中选择头像 → 导出所有健康数据，获得 ZIP。
+2. 打开应用，选择或拖入 ZIP。完整扫描后勾选要导出的来源。
+3. 选择日期和输出文件夹。日期范围按记录 **startDate 的原时区自然日**，两端包含；不会把跨午夜记录拆成每天的片段。
+4. 点击“导出 CSV”。完成后点击“打开结果文件夹”，查看 CSV 和 `export_manifest.json`。
 
-#### 🔒设备名称覆盖与隐私脱敏 (Device Name Anonymization & Privacy Shield)
-开启隐私保护模式后，应用将自动抹除包含个人信息的硬件原始名称（如“某某的 Apple Watch”），并替换为标准化的专属匿名标签，全方位保障数据对外分享与分析的安全性。
-Enable the privacy shield mode to automatically scrub original hardware device names containing personal information (e.g., "John's Apple Watch") and replace them with standardized anonymous tags, fully ensuring the security of data sharing and analysis.
+默认启用“匿名化来源名称”及“Excel 安全文本”。无来源或日期倒置时不能导出；空筛选结果不创建成功目录。
+可通过“文件 → 载入演示数据”体验流程，演示记录全部为合成数据。
+云盘或受系统管理的文件夹可能有额外读取等待；大文件建议先下载到本机。取消会等待当前系统文件读写返回后清理。
 
-#### 🕰数据日期区间智能筛选 (Smart Date Range Filtering)
-引擎会在导入瞬间极速嗅探并自动填报数据的真实起止时间。结合全新设计的纯文本约束化输入框，用户可以极其高效、精准地截取并导出特定时间段内的健康记录。
-The engine rapidly detects and auto-fills the true start and end dates of your data upon import. Combined with a newly designed masked text input, users can highly efficiently and precisely extract health records within any specific timeframe.
+### 多来源与隐私
 
-#### 📊自动分块导出 (Automated Data Chunking)
-针对大规模时间序列数据（如分钟级心率），应用执行自动分片逻辑。当单文件超过 80 万行时自动拆分，确保 Excel 及各类 AI 模型可以流畅加载。
-For large-scale time-series data, the app executes auto-sharding. Files are automatically split when exceeding 800,000 rows, ensuring smooth loading in Excel and AI models.
+输出是 **raw records union**，不复现 Health App 的来源优先级，也不自动去重。
+多个来源对同一指标有记录时，可在“详情”查看重叠说明，清单列出相应指标。不能直接跨来源累加步数或距离。
 
----
+匿名化仅把 `sourceName` 替换为任务内一致的 `Source_001` 等标签；不导出源名称映射、设备描述或自由文本元数据。日期与健康数值仍可识别个人，匿名化不是完全去标识化。
 
-### Supported Data Dimensions (支持导出的 15 大数据维度)
+Excel 安全文本会为可能被表格软件识别为公式的文本加单引号前缀，合法数字（含负数）保持不变。
+用于机器处理、需要精确原始文本时可关闭；不要把不可信 CSV 当作可信表格打开。
 
-Apple Health Pro v8.5.0 utilizes a dual-tag parsing engine to seamlessly extract both raw data points (`Record`) and functional training logs (`Workout`), categorized into 15 professional dimensions:
+### 输出格式
 
-| 分类序号 | 维度名称 (Category) | 导出文件名 (Exported CSV) | 核心指标涵盖 (Key Metrics Included) |
-| :---: | :--- | :--- | :--- |
-| **01** | **核心心血管** (Heart & Cardio) | `1_Heart_Cardio.csv` | 心率、静息心率、HRV (心率变异性)、步行平均心率 |
-| **02** | **身体成分** (Body Metrics) | `2_Body_Metrics.csv` | 体重、BMI、体脂率、瘦体重、身体水分 |
-| **03** | **日常基础消耗** (Daily Activity) | `3_Daily_Activity.csv` | 步数、活动能量消耗、静息能量消耗、步行距离、爬楼层数 |
-| **04** | **睡眠与恢复** (Sleep Recovery) | `4_Sleep_Recovery.csv` | 睡眠分析 (核心、深度、快速动眼、清醒等状态) |
-| **05** | **步态与行动力** (Mobility & Gait) | `5_Mobility_Gait.csv` | 步行速度、步长、不对称性、双足支撑时间、步态稳定性 |
-| **06** | **生殖与生理健康** (Reproductive) | `6_Reproductive.csv` | 经期记录、排卵测试结果、宫颈粘液质量 |
-| **07** | **生命体征** (Vitals & Respiratory)| `7_Vitals_Respiratory.csv`| 血氧饱和度、呼吸率、体温、血压 |
-| **08** | **跑步硬核动态** (Running Dynamics) | `8_Running_Dynamics.csv` | 跑步功率、垂直振幅、触地时间、跑步步幅、跑步速度 |
-| **09** | **骑行表现** (Cycling Stats) | `9_Cycling_Stats.csv` | 骑行功率、踏频、骑行速度、功能性阈值功率 (FTP) |
-| **10** | **游泳与水域** (Swimming & Water) | `10_Swimming_Water.csv` | 游泳距离、划水次数、水下深度、水温 |
-| **11** | **通用体能训练** (Workouts & Training)| `11_Workouts_Training.csv`| 力量训练、瑜伽、HIIT、传统跑/骑/游等所有手动开启的运动记录 |
-| **12** | **环境与感官** (Environment & Senses)| `12_Environment_Senses.csv`| 日照时间、环境音量暴露、耳机音量暴露 |
-| **13** | **营养与摄入** (Nutrition & Hydration)| `13_Nutrition_Hydration.csv`| 膳食能量、碳水、蛋白质、饮水量、咖啡因摄入 |
-| **14** | **心理状态与正念** (Mindfulness & Mental)| `14_Mindfulness_Mental.csv`| 心理状态打卡、情绪追踪、正念冥想时间 |
-| **15** | **症状与病史** (Symptoms & Illness)| `15_Symptoms_Illness.csv` | 头痛、咳嗽、疲劳等手动打卡的各类症状记录 |
+CSV 使用 UTF-8 BOM，字段顺序为：
 
----
+```
+type,value,unit,startdate,sourcename,enddate,record_kind,duration,durationunit,details_json
+```
 
-## 🚀 操作指南 (Operation Guide)
-#### 准备数据 (Prepare Data)
-在 iPhone “健康” App 中点击头像 -> “导出所有健康数据”。获得 export.zip。
-Export data in the iPhone "Health" App via Profile -> "Export All Health Data" to obtain export.zip.
-<img width="1179" height="563" alt="image" src="https://github.com/user-attachments/assets/9eead494-93f8-4040-9ac5-8d38b6a02fe1" />
+已有前五列保留，新增列附在后面。每类文件始终使用 `类别_Part001.csv` 编号，默认每片最多 880,000 条数据行。
+清单记录过滤条件、已写/已排除行数、未知类型计数、多来源指标及文件 SHA-256。
 
-#### 1、📚加载与索引 (Load & Index)
-启动程序，点击 SELECT DATA ARCHIVE (.ZIP)。系统执行索引构建。
-Launch the app and click SELECT DATA ARCHIVE (.ZIP). The system builds the data index.
+支持 Record、Workout 和 StateOfMind。保留 Workout 的可用总距离/能量及 WorkoutStatistics。
+缺失 endDate 时保留为空并报告数量，不推算不存在的终点。StateOfMind 保存属性，暂不解释嵌套标签/关联。
+ActivitySummary 等未处理的顶层元素会计数提示；ECG/路线附件、ClinicalRecord、自由文本 MetadataEntry 不在本版本输出范围。
 
-#### 2、🔍选择来源 (Select Sources)
-在 IDENTIFIED SOURCES 列表中勾选目标源。默认状态为“全不选”。
-Check target sources in the IDENTIFIED SOURCES list. Default is set to deselect all.
+## 开发与验证
 
-#### 3、🗓选择日期区间 (Select Date Range)
-系统已自动填报该数据包的真实起止时间。如有需要，可直接在文本框中输入修改，以精准截取特定时间段。
-The system automatically fills in the true start and end dates of the archive. You can directly edit the text fields to precisely extract a specific timeframe if needed.
-
-#### 4、🔒开启隐私脱敏 (Enable Privacy Shield)
-（可选）勾选 Mask Device Names 选项，应用将自动抹除并匿名化原始硬件名称，全方位保护您的隐私安全。
-(Optional) Check the Mask Device Names option to automatically scrub and anonymize original hardware names for comprehensive privacy protection.
-
-#### 5、☑️执行导出 (Execute Export)
-点击 EXECUTE EXPORT。生成的 CSV 将存储于原压缩包同级目录。
-Click EXECUTE EXPORT. CSV files will be saved in the same directory as the source zip.
-
----
-
-#### 推荐的提示词 (Prompt)
-你是一名具备运动生理学、 心血管医学 和健康数据建模能力的专业分析师。我将提供Apple Health原始数据（CSV），请基于数据进行接近专业体检级别的分析，并严格按照以下结构输出：首先给出【一句话结论】，直接判断整体健康状态（健康 / 亚健康 / 风险状态），不得模糊；然后进行【生理系统拆解分析】，从心血管系统（心率、HRV、静息心率）、神经系统（基于HRV分析交感/副交感平衡）、睡眠恢复系统、代谢与活动水平四个层面分析，必须解释背后的生理机制而非表象；接着进行【趋势建模】，基于时间序列判断是否存在周期性波动、长期改善或恶化趋势
-
-You are a professional analyst with expertise in exercise physiology, cardiovascular medicine, and health data modeling. I will provide raw Apple Health data (CSV). Please conduct a professional, clinical-grade analysis based on this data, adhering strictly to the following structure:
-
-[One-Sentence Conclusion]: Provide a direct assessment of the overall health status (Healthy / Sub-healthy / At-risk) without ambiguity.
-[Physiological System Breakdown Analysis]: Analyze four key areas—the cardiovascular system (Heart Rate, HRV, Resting Heart Rate), the nervous system (Sympathetic/Parasympathetic balance based on HRV), the sleep recovery system, and metabolism/activity levels. You must explain the underlying physiological mechanisms rather than merely reporting surface-level observations.
-[Trend Modeling]: Based on time-series data, identify periodic fluctuations and determine whether there are long-term trends of improvement or deterioration.
-<img width="2442" height="1804" alt="image" src="https://github.com/user-attachments/assets/1658d1ca-fdeb-4142-9187-0a0a14b010c2" />
-
----
-
-## 📥下载与安装 (Installation)
-无需配置 Python 环境，直接下载构建完成的二进制包：
-No Python environment required. Download the pre-built binary packages directly:
-
-#### Windows: HealthPro_Setup_v8.5.0.exe
-
-#### macOS: HealthPro_v8.5.0.dmg（Apple Silicon）
-
-#### macOS: HealthPro_v8.5.0_macOS_IntelChip.dmg （Intel CPU）
-
-##### (注：macOS 初次运行请右键图标选择”打开” / Note: For macOS, right-click and select “Open” for the first launch)
-
-#### Linux: HealthPro-8.5.0-x86_64.AppImage (通用 / Universal)
-
-#### Linux: healthpro_8.5.0_amd64.deb (Debian / Ubuntu)
+推荐 Python 3.11 或 3.12。代码兼容 Python 3.9；本地审核构建使用 Python 3.9.6。
 
 ```bash
-# AppImage — 下载即用 / Download and run directly
-chmod +x HealthPro-8.4.0-x86_64.AppImage
-./HealthPro-8.4.0-x86_64.AppImage
-
-# Debian/Ubuntu — deb 安装 / Install with dpkg
-sudo dpkg -i healthpro_8.4.0_amd64.deb
-sudo apt-get install -f   # 自动修复依赖 / Fix dependencies if needed
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+python health_app.py
+# 明确标注的合成数据预览
+python health_app.py --demo
 ```
-## 🙏 Acknowledgements / 鸣谢
 
-This project exists thanks to all the people who contribute. Special thanks to the following developers for their outstanding contributions to Apple Health Pro:
-特别感谢以下开发者对本项目的杰出贡献：
+运行依赖为 PyQt6 与 psutil（仅用于资源监控）。解析器只使用标准库，不依赖 pandas、numpy 或 lxml。
+源码运行前在 macOS 执行 `python scripts/build_native.py` 编译玻璃适配层；未编译时自动使用不透明样式。
+核心 API 位于 `healthpro/core.py`，Qt 适配层位于 `healthpro/gui.py`。
 
-* **[@CybDnb](https://github.com/CybDnb)** - For building the Linux native support (AppImage & deb) and the automated CI/CD packaging pipeline. (为本项目构建了完整的 Linux 原生支持与自动化打包流水线。)
+### 构建
 
-## © 2026 LEEcDiang. All rights reserved.
+版本号统一维护在 `healthpro/version.txt`。
 
----
-### ✍️ About the Author
-I'm **LEEcDiang**, a developer passionate about health data and studio-grade tools. 
-If you find this tool helpful, check out more of my thoughts and tutorials on my blog:
-👉 [**leecdiang.github.io**](https://leecdiang.github.io/myblog-source/)
+```bash
+python -m pip install -r requirements-build.txt
+python -m PyInstaller HealthPro.spec --clean --noconfirm
+```
+
+macOS 构建需要 Xcode 26+ SDK 编译小型 Objective-C 适配层（spec 自动执行），在本机架构构建；`rc` 版本输出独立的 `HealthPro Preview.app`，使用独立 bundle ID。
+在 iCloud 同步目录构建时，Finder 元数据可能影响签名；可给 PyInstaller 指定本机临时目录作为 `--distpath`。
+打包后可运行可执行文件的 `--smoke-test /tmp/healthpro-smoke.json`，它以合成数据验证导入/导出后退出；此选项不会读取个人健康数据。
+Windows 输出 `dist/HealthPro`，可在仓库根目录运行 `iscc HealthPro.iss` 生成安装器。
+Linux 使用 `HealthPro_linux.spec`，随后运行 `bash linux/build_deb.sh` / `bash linux/build_appimage.sh`。
+构建脚本如指定版本参数，必须与源码版本一致。正式发行前须在目标系统构建并验证；PyInstaller 不跨系统编译。
+
+CI 配置包含三系统、Python 3.11/3.12 的回归测试。配置存在不等于已经通过远端验证。
+发布工作流在各平台测试、冻结应用 smoke 和打包全部通过后创建正式 tag / Release。不会由运行应用触发上传或发布。
+
+## English summary
+
+Import an Apple Health ZIP, select sources and an inclusive **start-date** range, and export to a new per-job directory.
+All work happens locally. Unknown Record identifiers are retained, malformed input fails visibly, and cancellation removes temporary output.
+Exports preserve raw records and do not reconcile overlapping sources. Source-name masking does not anonymize timestamps or health values.
+The manifest provides row accounting, overlap flags, file checksums, and explicit scope limitations.
+
+## Acknowledgements
+
+Thanks to [@CybDnb](https://github.com/CybDnb) for the original Linux AppImage/deb support and packaging workflow.
+
+[License](LICENSE) · [Issues](https://github.com/leecdiang/Apple-Health-Pro/issues)

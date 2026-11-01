@@ -6,7 +6,7 @@
 # ============================================================
 set -euo pipefail
 
-VERSION="${1:-8.4.0}"
+VERSION_INPUT="${1:-}"
 PKG_NAME="HealthPro"
 DIST_DIR="dist/healthpro"
 APPDIR="build/${PKG_NAME}.AppDir"
@@ -14,6 +14,11 @@ APPDIR="build/${PKG_NAME}.AppDir"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${PROJECT_ROOT}"
+VERSION="$(python3 -c 'from healthpro import __version__; print(__version__)')"
+if [ -n "${VERSION_INPUT}" ] && [ "${VERSION_INPUT}" != "${VERSION}" ]; then
+    echo "Version must match healthpro/version.txt (${VERSION})" >&2
+    exit 1
+fi
 
 # ----------------------------------------------------------
 # Step 1: Build binary with PyInstaller (if not already built)
@@ -94,3 +99,4 @@ echo ""
 echo "Run with:"
 echo "   chmod +x ${OUTPUT_FILE}"
 echo "   ./${OUTPUT_FILE}"
+
