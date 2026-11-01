@@ -73,6 +73,20 @@ jobs:
           report = json.load(open('smoke.json'))
           assert report['success'] and report['indexed'] == report['exported'] == 217
           PY
+      - name: Build and verify standalone CLI
+        env:
+          PACKAGE_PLATFORM: ${{ matrix.platform }}
+        run: |
+          python -m PyInstaller HealthProCLI.spec --noconfirm
+          mkdir -p release
+          if [ "$RUNNER_OS" = Windows ]; then
+            python scripts/smoke_cli.py dist/healthpro-cli.exe
+            cp dist/healthpro-cli.exe "release/HealthProCLI_v${RELEASE_VERSION}_${PACKAGE_PLATFORM}.exe"
+          else
+            python scripts/smoke_cli.py dist/healthpro-cli
+            chmod +x dist/healthpro-cli
+            tar -czf "release/HealthProCLI_v${RELEASE_VERSION}_${PACKAGE_PLATFORM}.tar.gz" -C dist healthpro-cli
+          fi
       - name: Package macOS
         if: runner.os == 'macOS'
         env:

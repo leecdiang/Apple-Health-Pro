@@ -3,6 +3,26 @@
 A local desktop tool for turning Apple Health export ZIPs into categorized CSV files.
 本地处理 Apple 健康导出数据，按来源、日期与指标分类生成 CSV。
 
+## 开发中：8.9 CLI 与 JSONL
+
+新增无需图形界面的 `sources` / `export` 命令，支持 CSV 和 JSON Lines。源码 CLI 仅依赖 Python 标准库，无需安装 PyQt6 或 psutil；桌面版继续使用原有 CSV 流程。
+
+```bash
+# 在仓库目录运行；此命令会列出原始来源名称
+python -m healthpro sources --input export.zip
+
+# output 必须为已存在的目录；每次导出创建独立结果子目录
+python -m healthpro export --input export.zip --output ./output --format jsonl
+
+# 精确匹配来源名；可重复 --source-filter 选择多个来源
+python -m healthpro export --input export.zip --output ./output --format csv \
+  --source-filter "Apple Watch" --start-date 2026-01-01 --end-date 2026-10-31
+```
+
+也可使用 `python healthpro_cli.py ...` 或 `python health_app.py export ...`。独立控制台程序通过 `HealthProCLI.spec` 构建，Windows 使用真正的 console 可执行文件；不会借用桌面 EXE 的无控制台输出。后续正式发布会提供各平台独立 CLI 包，当前 v8.8.0 下载包尚不包含此功能。
+
+完整命令、退出码与 JSONL 字段见 [CLI 文档](docs/cli.md)。
+
 ## v8.8.0
 
 [下载正式版](https://github.com/leecdiang/Apple-Health-Pro/releases/latest) · [更新记录](CHANGELOG.md)

@@ -29,3 +29,26 @@ jobs:
           sudo apt-get install -y libegl1 libgl1 libxkbcommon0
       - run: python -m pip install -r requirements-dev.txt
       - run: python -m pytest -q
+  cli-standalone:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Source CLI without site packages
+        run: python scripts/smoke_cli.py python -S -m healthpro
+      - run: python -m pip install pyinstaller==6.19.0
+      - run: python -m PyInstaller HealthProCLI.spec --noconfirm
+      - name: Frozen CLI smoke
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            python scripts/smoke_cli.py dist/healthpro-cli.exe
+          else
+            python scripts/smoke_cli.py dist/healthpro-cli
+          fi

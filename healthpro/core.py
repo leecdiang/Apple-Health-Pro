@@ -1,9 +1,10 @@
-"""GUI-independent bounded-memory parsing and transactional CSV export."""
+"""GUI-independent bounded-memory parsing and transactional CSV / JSONL export."""
 from __future__ import annotations
 
 import csv
 import hashlib
 import json
+import math
 import os
 import shutil
 import tempfile
@@ -244,6 +245,7 @@ class ExportOptions:
     privacy: bool = True
     spreadsheet_safe: bool = True
     chunk_rows: int = 880000
+    format: str = "csv"
 
 
 @dataclass
@@ -254,6 +256,10 @@ class ExportResult:
     unmapped_rows: int
     overlap_types: list
     manifest: dict
+
+    @property
+    def data_files(self):
+        return len(self.manifest["files"])
 
 
 def _spreadsheet_text(value):
@@ -282,7 +288,33 @@ def _csv_row(sample, source, safe):
     return row
 
 
+def _json_number(raw):
+    """Convenience numeric value; original XML text remains authoritative."""
+    import re
+    if not re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?", raw or "", re.ASCII):
+        return None
+    try:
+        value = int(raw) if re.fullmatch(r"[+-]?\d+", raw, re.ASCII) else float(raw)
+        return value if isinstance(value, int) or math.isfinite(value) else None
+    except (ValueError, OverflowError):
+        return None
+
+
+def _json_row(sample, source):
+    return {"schema_version": 1, "category": sample.category,
+            "type": sample.type, "value": sample.value,
+            "numeric_value": _json_number(sample.value), "unit": sample.unit or None,
+            "startdate": sample.startdate, "enddate": sample.enddate or None,
+            "sourcename": source, "record_kind": sample.kind,
+            "duration": sample.duration or None,
+            "numeric_duration": _json_number(sample.duration),
+            "durationunit": sample.durationunit or None,
+            "details": json.loads(sample.details) if sample.details else {}}
+
+
 class _CsvSink:
+    suffix = "csv"
+    encoding = "utf-8-sig"
     def __init__(self, directory, limit):
         self.directory, self.limit = directory, limit
         self.handles, self.writers, self.counts, self.parts = {}, {}, Counter(), Counter()
@@ -295,18 +327,24 @@ class _CsvSink:
                 self.handles.pop(category).close()
             self.parts[category] += 1
             # Always numbered: filenames never change when another chunk appears.
-            name = f"{category}_Part{self.parts[category]:03d}.csv"
-            handle = (self.directory / name).open("w", encoding="utf-8-sig", newline="")
+            name = f"{category}_Part{self.parts[category]:03d}.{self.suffix}"
+            handle = (self.directory / name).open("w", encoding=self.encoding, newline="")
             self.handles[category] = handle
-            writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS, quoting=csv.QUOTE_ALL)
-            self.writers[category] = writer
-            writer.writeheader()
+            self.open_writer(category, handle)
             metadata = {"name": name, "category": category, "rows": 0}
             self.files.append(metadata)
             self.active_files[category] = metadata
-        self.writers[category].writerow(row)
+        self.write_row(category, row)
         self.counts[category] += 1
         self.active_files[category]["rows"] += 1
+
+    def open_writer(self, category, handle):
+        writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS, quoting=csv.QUOTE_ALL)
+        self.writers[category] = writer
+        writer.writeheader()
+
+    def write_row(self, category, row):
+        self.writers[category].writerow(row)
 
     def close(self):
         error = None
@@ -320,13 +358,27 @@ class _CsvSink:
             raise error
 
 
+class _JsonlSink(_CsvSink):
+    suffix = "jsonl"
+    encoding = "utf-8"
+
+    def open_writer(self, category, handle):
+        pass
+
+    def write_row(self, category, row):
+        self.handles[category].write(json.dumps(row, ensure_ascii=False, allow_nan=False,
+                                               separators=(",", ":")) + "\n")
+
+
 def export_archive(index, options, *, cancel=None, progress=None):
+    if options.format not in {"csv", "jsonl"}:
+        raise HealthDataError("输出格式必须为 csv 或 jsonl。")
     if not options.sources or not options.sources <= index.sources.keys():
         raise HealthDataError("请选择有效的数据来源。")
     if options.start > options.end:
         raise HealthDataError("开始日期不能晚于结束日期。")
     if options.chunk_rows < 1 or options.chunk_rows > 1_048_575:
-        raise HealthDataError("CSV 每片行数必须为 1–1,048,575。")
+        raise HealthDataError("每片行数必须为 1–1,048,575。")
     if _identity(index.path) != index.identity:
         raise HealthDataError("原始 ZIP 已变化，请重新导入后导出。")
     destination = Path(options.destination).expanduser().resolve()
@@ -334,7 +386,7 @@ def export_archive(index, options, *, cancel=None, progress=None):
         raise HealthDataError("输出位置不存在，请选择一个文件夹。")
     _check_cancel(cancel)
     staging = Path(tempfile.mkdtemp(prefix=".healthpro-", dir=destination))
-    sink = _CsvSink(staging, options.chunk_rows)
+    sink = (_CsvSink if options.format == "csv" else _JsonlSink)(staging, options.chunk_rows)
     source_map = {name: f"Source_{i:03d}" for i, name in enumerate(sorted(options.sources), 1)}
     selected_rows = 0
     omitted_sources = omitted_dates = 0
@@ -350,7 +402,9 @@ def export_archive(index, options, *, cancel=None, progress=None):
                 omitted_dates += 1
                 continue
             source = source_map[sample.source] if options.privacy else sample.source
-            sink.write(sample.category, _csv_row(sample, source, options.spreadsheet_safe))
+            row = (_csv_row(sample, source, options.spreadsheet_safe) if options.format == "csv"
+                   else _json_row(sample, source))
+            sink.write(sample.category, row)
             selected_types[sample.type][source] += 1
             selected_rows += 1
             missing_end += not bool(sample.enddate)
@@ -373,6 +427,7 @@ def export_archive(index, options, *, cancel=None, progress=None):
             info["sha256"] = digest.hexdigest()
         manifest = {
             "schema_version": 1, "app_version": __version__, "status": "complete",
+            "format": options.format,
             "created_at": datetime.now().astimezone().isoformat(),
             "input": {"zip_size": index.identity[0], "xml_size": index.xml_size,
                       "records_indexed": index.total_records},
@@ -380,7 +435,7 @@ def export_archive(index, options, *, cancel=None, progress=None):
                         "date_policy": "inclusive startDate calendar date in each record's original timezone",
                         "sources": list(source_map.values()) if options.privacy else sorted(options.sources)},
             "privacy": {"source_names_masked": options.privacy, "scope": "sourceName only; dates and health values remain sensitive; free-form metadata and device descriptors are not exported"},
-            "spreadsheet_safe_text": options.spreadsheet_safe,
+            "spreadsheet_safe_text": options.spreadsheet_safe if options.format == "csv" else False,
             "merge_policy": "raw_records_union_no_deduplication",
             "records_written": selected_rows,
             "records_excluded_by_source": omitted_sources,
@@ -405,7 +460,8 @@ def export_archive(index, options, *, cancel=None, progress=None):
         final = destination / name
         os.rename(staging, final)
         published = True
-        return ExportResult(final, selected_rows, len(sink.files), sink.counts["16_Other_Unmapped"], overlaps, manifest)
+        return ExportResult(final, selected_rows, len(sink.files) if options.format == "csv" else 0,
+                            sink.counts["16_Other_Unmapped"], overlaps, manifest)
     finally:
         try:
             sink.close()
