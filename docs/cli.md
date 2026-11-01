@@ -1,4 +1,4 @@
-# 命令行导出（8.9.0rc1）
+# 命令行导出（8.9.0）
 
 在源码目录运行 `python -m healthpro` 或 `python healthpro_cli.py`，仅需 Python 3.9+ 标准库。无需 GUI、显示服务器、Qt 或 psutil。`python health_app.py export ...` 也会直接进入无 GUI 路径。
 

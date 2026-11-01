@@ -1,42 +1,97 @@
 # Apple Health Pro
 
-A local desktop tool for turning Apple Health export ZIPs into categorized CSV files.
-本地处理 Apple 健康导出数据，按来源、日期与指标分类生成 CSV。
+把 Apple 健康导出 ZIP 转成按来源、日期与指标分类的 CSV / JSONL。桌面操作或命令行自动化，全部在本机完成。
 
-## 开发中：8.9 CLI 与 JSONL
+A local desktop app and CLI for converting Apple Health exports into categorized CSV and JSON Lines.
 
-新增无需图形界面的 `sources` / `export` 命令，支持 CSV 和 JSON Lines。源码 CLI 仅依赖 Python 标准库，无需安装 PyQt6 或 psutil；桌面版继续使用原有 CSV 流程。
+[下载 v8.9.0](https://github.com/leecdiang/Apple-Health-Pro/releases/tag/v8.9.0) · [CLI 文档](docs/cli.md) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/leecdiang/Apple-Health-Pro/issues)
+
+## 界面
+
+macOS 实机截图，全部使用应用内置的 **217 条合成演示记录**。
+启动时跟随系统外观；右上角小按钮可直接切换深浅色。
+
+| 浅色 | 深色 |
+| --- | --- |
+| ![浅色界面与来源选择](docs/images/healthpro-light.jpg) | ![深色界面与导出结果](docs/images/healthpro-dark.jpg) |
+
+<details>
+<summary>查看导出完成与数据清单说明</summary>
+
+![导出完成、记录计数和多来源说明](docs/images/healthpro-export.jpg)
+
+</details>
+
+macOS 26+ 使用原生 Liquid Glass，较早 macOS 使用系统模糊材质；Windows / Linux 使用实色界面。玻璃效果会随系统与辅助功能设置变化。
+
+## 下载
+
+桌面版适合交互式 CSV 导出；独立 CLI 支持 CSV / JSONL，无需安装 Python 或 Qt。下面的文件均位于 [v8.9.0 Release](https://github.com/leecdiang/Apple-Health-Pro/releases/tag/v8.9.0)，附 `SHA256SUMS.txt`。
+
+| 平台 | 桌面版 | 独立 CLI |
+| --- | --- | --- |
+| macOS Apple Silicon | `HealthPro_v8.9.0_macOS_AppleSilicon.dmg` | `HealthProCLI_v8.9.0_macOS_AppleSilicon.tar.gz` |
+| macOS Intel | `HealthPro_v8.9.0_macOS_Intel.dmg` | `HealthProCLI_v8.9.0_macOS_Intel.tar.gz` |
+| Windows x64 | `HealthPro_Setup_v8.9.0.exe` | `HealthProCLI_v8.9.0_Windows.exe` |
+| Linux x86_64 | `healthpro_8.9.0_amd64.deb` / `HealthPro-8.9.0-x86_64.AppImage` | `HealthProCLI_v8.9.0_Linux.tar.gz` |
+
+macOS 包采用 ad-hoc 签名，尚未进行 Developer ID 公证。
+
+## CLI 快速开始
+
+### macOS / Linux：独立程序
+
+解压对应平台的 CLI 压缩包，在终端进入解压目录：
 
 ```bash
-# 在仓库目录运行；此命令会列出原始来源名称
-python -m healthpro sources --input export.zip
+./healthpro-cli --version
+# 列出原始来源名称，供精确筛选使用
+./healthpro-cli sources --input export.zip --quiet
 
-# output 必须为已存在的目录；每次导出创建独立结果子目录
-python -m healthpro export --input export.zip --output ./output --format jsonl
+# 输出目录需事先存在；每次导出创建新的结果子目录
+mkdir -p output
+./healthpro-cli export --input export.zip --output ./output --format jsonl
 
-# 精确匹配来源名；可重复 --source-filter 选择多个来源
-python -m healthpro export --input export.zip --output ./output --format csv \
-  --source-filter "Apple Watch" --start-date 2026-01-01 --end-date 2026-10-31
+# 导出指定来源与日期；来源名称必须与 sources 的结果完全一致
+./healthpro-cli export --input export.zip --output ./output --format csv \
+  --source-filter "Apple Watch" \
+  --start-date 2026-01-01 --end-date 2026-10-31
 ```
 
-也可使用 `python healthpro_cli.py ...` 或 `python health_app.py export ...`。独立控制台程序通过 `HealthProCLI.spec` 构建，Windows 使用真正的 console 可执行文件；不会借用桌面 EXE 的无控制台输出。后续正式发布会提供各平台独立 CLI 包，当前 v8.8.0 下载包尚不包含此功能。
+### Windows PowerShell
 
-完整命令、退出码与 JSONL 字段见 [CLI 文档](docs/cli.md)。
+```powershell
+New-Item -ItemType Directory -Force output | Out-Null
+.\HealthProCLI_v8.9.0_Windows.exe sources --input .\export.zip --quiet
+.\HealthProCLI_v8.9.0_Windows.exe export --input .\export.zip --output .\output --format jsonl
+```
 
-## v8.8.0
+### 从源码运行
 
-[下载正式版](https://github.com/leecdiang/Apple-Health-Pro/releases/latest) · [更新记录](CHANGELOG.md)
+在仓库根目录运行，仅需 Python 3.9+ 标准库，**不需要安装 GUI 依赖**：
 
-- 保留原始 `startdate` / `enddate`、时区、数值与单位，补充运动持续时间及可用统计字段。
-- 两遍流式处理：首次扫描仅建立来源/日期/类型统计，导出时重新扫描并逐条写入。内存随不同来源、类型和最大单条记录大小变化，不保留全量 DataFrame。
-- 完整检查 XML；损坏、截断、无效时间或空数据不会显示为成功。
-- 完整 identifier 映射到唯一主分类；未知 Record 类型保留到 `16_Other_Unmapped`，计数可查。
-- 每次导出创建独立目录，全部文件写完并生成清单后才发布。失败/取消会清理该次临时目录，不覆盖已有结果。
-- 可取消的单任务 GUI；关闭窗口会等待任务停止与临时文件清理。
-- 恢复公开版的 CPU / 内存小圆环和阶段配色进度转盘；资源每 1.5 秒非阻塞采样，空闲不播放动画。
-- 精简主界面，更多导出选项与说明折叠；启动时跟随系统外观，右上角小按钮一键切换深色与浅色。
-- macOS 使用原生文件选择 sheet 导入 ZIP 和选择输出文件夹；日历采用圆角弹出面板，支持年月选择、方向键与 Escape。导出按钮在禁用和可点击状态下均保持胶囊圆角。
-- macOS 26+ 使用 AppKit NSGlassEffectView，较早版本回退到 NSVisualEffectView；其他平台采用不透明材质。系统“降低透明度”“增强对比度”“减少动态效果”即时生效。
+```bash
+python -m healthpro sources --input export.zip --quiet
+python -m healthpro export --input export.zip --output ./output --format jsonl
+python -m healthpro export --help
+```
+
+`--source-filter` 可重复指定多个来源；省略时选择全部来源。默认匿名化来源名，CSV 同时启用 Excel 安全文本。
+JSONL 每行一个对象，保留原始数值字符串，另提供数值辅助字段与嵌套运动统计。成功结果以单个 JSON 对象写入 stdout，进度和错误写入 stderr；使用 `--quiet` 隐藏进度，适合脚本重定向。
+
+```bash
+./healthpro-cli export --input export.zip --output ./output --format jsonl --quiet > result.json
+```
+
+完整参数、JSONL schema、精度说明和退出码见 [CLI 文档](docs/cli.md)。
+
+## 功能
+
+- 两遍流式解析，不保留全量 DataFrame；按来源、日期与唯一主分类导出，未知 Record 类型单独保留。
+- 保留原始起止时间、时区、数值与单位，以及可用的运动统计。
+- 独立结果目录、分片输出、失败或取消清理，以及包含行数与 SHA-256 的导出清单。
+- CPU / 内存圆环、阶段配色进度、深浅色切换；macOS 原生 ZIP / 文件夹选择面板。
+- 完全本地处理，默认匿名化来源名；保留多来源原始记录，不自动去重。
 
 ## 使用
 
@@ -106,7 +161,7 @@ Windows 输出 `dist/HealthPro`，可在仓库根目录运行 `iscc HealthPro.is
 Linux 使用 `HealthPro_linux.spec`，随后运行 `bash linux/build_deb.sh` / `bash linux/build_appimage.sh`。
 构建脚本如指定版本参数，必须与源码版本一致。正式发行前须在目标系统构建并验证；PyInstaller 不跨系统编译。
 
-CI 配置包含三系统、Python 3.11/3.12 的回归测试。配置存在不等于已经通过远端验证。
+CI 覆盖三系统、Python 3.11/3.12 的回归测试，并在三个系统分别验证无 Qt 环境下的源码 CLI 与独立可执行程序。
 发布工作流在各平台测试、冻结应用 smoke 和打包全部通过后创建正式 tag / Release。不会由运行应用触发上传或发布。
 
 ## English summary
