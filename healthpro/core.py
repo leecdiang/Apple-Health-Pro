@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import io
 import json
 import math
 import os
@@ -10,6 +11,7 @@ import shutil
 import tempfile
 import uuid
 import zipfile
+import zlib
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
@@ -166,6 +168,16 @@ def _sample(elem):
                   json.dumps(details, ensure_ascii=False, sort_keys=True) if details else "")
 
 
+def _xml_events(stream):
+    """Normalize parser/decoder errors without swallowing caller callback failures."""
+    try:
+        yield from ET.iterparse(stream, events=("start", "end"))
+    except (LookupError, ValueError) as exc:
+        raise HealthDataError("XML 编码不受支持或无效，请重新从健康 App 导出。") from exc
+    except (zlib.error, EOFError) as exc:
+        raise HealthDataError("ZIP 压缩数据损坏或不完整，请重新传输或导出。") from exc
+
+
 def iter_samples(path, member, *, cancel=None, progress=None, skipped=None) -> Iterator[Sample]:
     """Retain at most a top-level record subtree; validate the entire document."""
     _check_cancel(cancel)
@@ -176,7 +188,7 @@ def iter_samples(path, member, *, cancel=None, progress=None, skipped=None) -> I
             count = 0
             root = None
             try:
-                for event, elem in ET.iterparse(stream, events=("start", "end")):
+                for event, elem in _xml_events(stream):
                     _check_cancel(cancel)
                     if event == "start":
                         if root is None:
@@ -185,7 +197,9 @@ def iter_samples(path, member, *, cancel=None, progress=None, skipped=None) -> I
                                 raise HealthDataError("XML 根节点不是 HealthData；这不是受支持的 Apple 健康导出。")
                         stack.append(elem)
                         continue
-                    if elem.tag in SUPPORTED_TAGS:
+                    # Correlation children are references to records also exported
+                    # at top level, not additional independent observations.
+                    if len(stack) == 2 and elem.tag in SUPPORTED_TAGS:
                         sample = _sample(elem)
                         count += 1
                         yield sample
@@ -220,7 +234,9 @@ def scan_archive(path, *, cancel=None, progress=None):
         missing_end += not bool(sample.enddate)
         first = min(first, sample.start_day) if first else sample.start_day
         last = max(last, sample.start_day) if last else sample.start_day
-        source = sources.setdefault(sample.source, SourceInfo())
+        source = sources.get(sample.source)
+        if source is None:
+            source = sources[sample.source] = SourceInfo()
         source.count += 1
         source.first_day = min(source.first_day, sample.start_day) if source.first_day else sample.start_day
         source.last_day = max(source.last_day, sample.start_day) if source.last_day else sample.start_day
@@ -312,6 +328,18 @@ def _json_row(sample, source):
             "details": json.loads(sample.details) if sample.details else {}}
 
 
+class _HashingWriter(io.BufferedWriter):
+    """Hash exactly the encoded bytes accepted by the output buffer."""
+    def __init__(self, raw, digest):
+        super().__init__(raw)
+        self.digest = digest
+
+    def write(self, data):
+        written = super().write(data)
+        self.digest.update(memoryview(data)[:written])
+        return written
+
+
 class _CsvSink:
     suffix = "csv"
     encoding = "utf-8-sig"
@@ -320,6 +348,7 @@ class _CsvSink:
         self.handles, self.writers, self.counts, self.parts = {}, {}, Counter(), Counter()
         self.files = []
         self.active_files = {}
+        self.digests = {}
 
     def write(self, category, row):
         if category not in self.handles or self.counts[category] % self.limit == 0:
@@ -328,7 +357,15 @@ class _CsvSink:
             self.parts[category] += 1
             # Always numbered: filenames never change when another chunk appears.
             name = f"{category}_Part{self.parts[category]:03d}.{self.suffix}"
-            handle = (self.directory / name).open("w", encoding=self.encoding, newline="")
+            digest = hashlib.sha256()
+            raw = (self.directory / name).open("wb", buffering=0)
+            try:
+                handle = io.TextIOWrapper(_HashingWriter(raw, digest),
+                                          encoding=self.encoding, newline="")
+            except BaseException:
+                raw.close()
+                raise
+            self.digests[name] = digest
             self.handles[category] = handle
             self.open_writer(category, handle)
             metadata = {"name": name, "category": category, "rows": 0}
@@ -416,15 +453,8 @@ def export_archive(index, options, *, cancel=None, progress=None):
             raise NoMatchingRecords("所选来源与日期范围内没有记录；没有生成结果目录。")
         overlaps = sorted(t for t, sources in selected_types.items() if len(sources) > 1)
         for info in sink.files:
-            digest = hashlib.sha256()
-            with (staging / info["name"]).open("rb") as file:
-                while True:
-                    _check_cancel(cancel)
-                    chunk = file.read(1024 * 1024)
-                    if not chunk:
-                        break
-                    digest.update(chunk)
-            info["sha256"] = digest.hexdigest()
+            _check_cancel(cancel)
+            info["sha256"] = sink.digests[info["name"]].hexdigest()
         manifest = {
             "schema_version": 1, "app_version": __version__, "status": "complete",
             "format": options.format,

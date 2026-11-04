@@ -6,7 +6,7 @@ on:
       version:
         description: 'Approved version matching healthpro/version.txt'
         required: true
-        default: '8.9.0'
+        default: '8.9.1'
 
 permissions:
   contents: read
@@ -111,6 +111,7 @@ jobs:
           bash linux/build_deb.sh
           bash linux/build_appimage.sh
           mkdir -p release
+          python scripts/smoke_linux_packages.py "$RELEASE_VERSION"
           cp build/healthpro_*.deb dist/HealthPro-*.AppImage release/
       - uses: actions/upload-artifact@v4
         with:

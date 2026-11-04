@@ -230,3 +230,80 @@ def test_parser_root_does_not_retain_records(tmp_path,monkeypatch):
     monkeypatch.setattr(core.ET,'iterparse',observe)
     index=core.scan_archive(archive(tmp_path,health(*[record()]*10000)))
     assert index.total_records==10000 and retained==[0]
+
+
+@pytest.mark.parametrize('fmt', ['csv', 'jsonl'])
+def test_correlation_references_not_counted_as_independent_samples(tmp_path, fmt):
+    food = record('HKQuantityTypeIdentifierDietaryEnergyConsumed', value='500', sourceName='Food App')
+    other = record('HKQuantityTypeIdentifierDietaryEnergyConsumed', value='500', sourceName='Other App')
+    # Apple export DTD declares correlation child Records also occur top-level.
+    correlation = '<Correlation type="HKCorrelationTypeIdentifierFood">'+food+'</Correlation>'
+    index = core.scan_archive(archive(tmp_path, health(food, correlation, other, food)))
+    result = core.export_archive(index, options(index, tmp_path, format=fmt))
+    # Preserve independent sources and repeated top-level observations, not references.
+    assert index.total_records == result.rows == 3
+    assert index.sources['Food App'].count == 2
+    assert result.overlap_types == ['HKQuantityTypeIdentifierDietaryEnergyConsumed']
+
+
+@pytest.mark.parametrize('encoding', ['x-not-an-encoding', 'shift_jis'])
+def test_unsupported_xml_encoding_is_actionable(tmp_path, encoding):
+    xml = '<?xml version="1.0" encoding="'+encoding+'"?>'+health(record())
+    with pytest.raises(core.HealthDataError, match='编码'):
+        core.scan_archive(archive(tmp_path, xml))
+
+
+def test_corrupt_deflate_is_actionable(tmp_path):
+    path = archive(tmp_path, health(record()), member='export.xml')
+    raw = bytearray(path.read_bytes())
+    raw[30+len('export.xml')] = 0xff  # invalid DEFLATE block type
+    path.write_bytes(raw)
+    with pytest.raises(core.HealthDataError, match='损坏'):
+        core.scan_archive(path)
+
+
+@pytest.mark.parametrize('fmt', ['csv', 'jsonl'])
+def test_private_descriptors_and_free_form_metadata_are_omitted(tmp_path, fmt):
+    node = ET.fromstring(record(sourceName='PRIVATE_SOURCE', device='PRIVATE_DEVICE'))
+    ET.SubElement(node, 'MetadataEntry', key='note', value='PRIVATE_NOTE')
+    xml = health('<Me name="PRIVATE_PERSON"/>', ET.tostring(node, encoding='unicode'))
+    index = core.scan_archive(archive(tmp_path, xml))
+    result = core.export_archive(index, options(index, tmp_path, format=fmt))
+    text = ''.join(p.read_text(encoding='utf-8-sig') for p in result.directory.iterdir())
+    for marker in ['PRIVATE_SOURCE', 'PRIVATE_DEVICE', 'PRIVATE_NOTE', 'PRIVATE_PERSON']:
+        assert marker not in text
+
+
+def test_source_info_is_allocated_once_per_distinct_source(tmp_path, monkeypatch):
+    original = core.SourceInfo
+    allocations = []
+    def counted():
+        allocations.append(1)
+        return original()
+    monkeypatch.setattr(core, 'SourceInfo', counted)
+    index = core.scan_archive(archive(tmp_path, health(*([record()]*100))))
+    assert index.total_records == 100
+    assert len(allocations) == 1
+
+
+@pytest.mark.parametrize('fmt', ['csv', 'jsonl'])
+def test_streaming_checksums_do_not_reread_output(tmp_path, monkeypatch, fmt):
+    index = core.scan_archive(archive(tmp_path, health(
+        record(value='72.5', sourceName='合成来源'),
+        record(value='73.5', sourceName='合成来源'),
+        record(value='74.5', sourceName='合成来源'))))
+    original = Path.open
+    def no_output_reads(path, mode='r', *args, **kwargs):
+        if path.suffix in {'.csv', '.jsonl'} and ('r' in mode or '+' in mode):
+            raise AssertionError('export must not reread data files for checksums')
+        return original(path, mode, *args, **kwargs)
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, 'open', no_output_reads)
+        result = core.export_archive(index, options(index, tmp_path,
+                    format=fmt, chunk_rows=2, privacy=False))
+    assert result.rows == 3 and result.data_files == 2
+    for item in result.manifest['files']:
+        data = (result.directory/item['name']).read_bytes()
+        assert hashlib.sha256(data).hexdigest() == item['sha256']
+        assert data.startswith(b'\xef\xbb\xbf') == (fmt == 'csv')
+        assert '合成来源'.encode() in data

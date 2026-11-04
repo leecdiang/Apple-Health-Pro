@@ -2,11 +2,12 @@
 import json
 from pathlib import Path
 from PyQt6.QtCore import QTimer
+from . import __version__
 
 
 def run_smoke(app, window, report_path):
     report_path = Path(report_path)
-    state = {"phase": "import", "success": False}
+    state = {"phase": "import", "success": False, "app_version": __version__}
     timer = QTimer(window)
     # Synthetic accessibility transitions must not be overwritten by OS polling.
     window.preference_timer.stop()

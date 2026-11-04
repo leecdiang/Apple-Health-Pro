@@ -156,10 +156,11 @@ class ResourceHUD(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("resourceHUD")
-        self.process = psutil.Process(os.getpid())
-        self.cores = psutil.cpu_count(logical=True) or 1
-        self.total_memory = psutil.virtual_memory().total
-        self.process.cpu_percent(interval=None)
+        # Telemetry is optional: sandbox/process permissions must not block startup.
+        self.process = None
+        self.cores = 1
+        self.total_memory = 1
+        self.initialize_monitor()
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 4, 10, 4)
         layout.setSpacing(14)
@@ -185,8 +186,21 @@ class ResourceHUD(QFrame):
         self.timer.setTimerType(Qt.TimerType.CoarseTimer)
         self.timer.timeout.connect(self.sample)
 
+    def initialize_monitor(self):
+        try:
+            process = psutil.Process(os.getpid())
+            cores = psutil.cpu_count(logical=True) or 1
+            total_memory = max(1, psutil.virtual_memory().total)
+            process.cpu_percent(interval=None)
+        except (psutil.Error, OSError):
+            return False
+        self.process, self.cores, self.total_memory = process, cores, total_memory
+        return True
+
     def sample(self):
         try:
+            if self.process is None and not self.initialize_monitor():
+                return  # Labels retain the unavailable state; retry next timer tick.
             # interval=None is nonblocking; never sleep on the GUI thread.
             cpu = min(100.0, self.process.cpu_percent(interval=None) / self.cores)
             rss = self.process.memory_info().rss

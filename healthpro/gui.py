@@ -94,7 +94,7 @@ class MainWindow(QMainWindow):
         self.resize(1020, 780)
         self.materials = NativeMaterials()
         self.accessibility_flags = self.materials.preferences()
-        self.setWindowIcon(QIcon(str(resources()/"icon.icns")))
+        self.setWindowIcon(QIcon(str(resources()/"icon.png")))
         self.build_ui()
         self.build_menu()
         QApplication.instance().styleHints().colorSchemeChanged.connect(lambda _: self.apply_theme())

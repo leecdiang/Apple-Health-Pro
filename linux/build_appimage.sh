@@ -21,27 +21,46 @@ if [ -n "${VERSION_INPUT}" ] && [ "${VERSION_INPUT}" != "${VERSION}" ]; then
 fi
 
 # ----------------------------------------------------------
-# Step 1: Build binary with PyInstaller (if not already built)
+# Step 1: Rebuild from this checkout, never reuse an unverified dist directory.
 # ----------------------------------------------------------
-if [ ! -d "${DIST_DIR}" ]; then
-    echo "🔨 Building binary with PyInstaller..."
-    pip install -r requirements-linux.txt
-    pyinstaller HealthPro_linux.spec --clean --noconfirm
-fi
+echo "🔨 Building binary from current source with PyInstaller..."
+python3 -m pip install -r requirements-linux.txt
+python3 -m PyInstaller HealthPro_linux.spec --clean --noconfirm
 
 echo "📦 Creating AppImage v${VERSION}..."
 
 # ----------------------------------------------------------
-# Step 2: Download appimagetool if not present
+# Step 2: Pin and verify the official release tool, including cached copies.
+# Digest: GitHub release asset metadata for AppImage/appimagetool 1.9.1.
 # ----------------------------------------------------------
-APPIMAGETOOL="build/appimagetool"
+TOOL_VERSION="1.9.1"
+TOOL_SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
+APPIMAGETOOL="build/appimagetool-${TOOL_VERSION}-x86_64.AppImage"
+mkdir -p build
 if [ ! -f "${APPIMAGETOOL}" ]; then
-    echo "⬇️  Downloading appimagetool..."
-    mkdir -p build
-    TOOL_URL="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
-    curl -fSL "${TOOL_URL}" -o "${APPIMAGETOOL}"
-    chmod +x "${APPIMAGETOOL}"
+    TOOL_DOWNLOAD="${APPIMAGETOOL}.download.$$"
+    trap 'rm -f "${TOOL_DOWNLOAD}"' EXIT
+    curl -fSL "https://github.com/AppImage/appimagetool/releases/download/${TOOL_VERSION}/appimagetool-x86_64.AppImage" -o "${TOOL_DOWNLOAD}"
+    echo "${TOOL_SHA256}  ${TOOL_DOWNLOAD}" | sha256sum --check --status
+    mv "${TOOL_DOWNLOAD}" "${APPIMAGETOOL}"
+    trap - EXIT
 fi
+echo "${TOOL_SHA256}  ${APPIMAGETOOL}" | sha256sum --check --status
+chmod +x "${APPIMAGETOOL}"
+
+# Pin the runtime too: appimagetool otherwise downloads a moving default runtime.
+# Digest: GitHub AppImage/type2-runtime 20251108 release asset 326011592.
+RUNTIME_SHA256="2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d"
+RUNTIME="build/runtime-x86_64-${RUNTIME_SHA256}"
+if [ ! -f "${RUNTIME}" ]; then
+    RUNTIME_DOWNLOAD="${RUNTIME}.download.$$"
+    trap 'rm -f "${RUNTIME_DOWNLOAD}"' EXIT
+    curl -fSL "https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64" -o "${RUNTIME_DOWNLOAD}"
+    echo "${RUNTIME_SHA256}  ${RUNTIME_DOWNLOAD}" | sha256sum --check --status
+    mv "${RUNTIME_DOWNLOAD}" "${RUNTIME}"
+    trap - EXIT
+fi
+echo "${RUNTIME_SHA256}  ${RUNTIME}" | sha256sum --check --status
 
 # ----------------------------------------------------------
 # Step 3: Create AppDir structure
@@ -86,9 +105,9 @@ export ARCH=x86_64
 OUTPUT_FILE="dist/${PKG_NAME}-${VERSION}-x86_64.AppImage"
 
 # appimagetool may need FUSE; try --appimage-extract-and-run as fallback
-"${APPIMAGETOOL}" --appimage-extract-and-run "${APPDIR}" "${OUTPUT_FILE}" \
+"${APPIMAGETOOL}" --appimage-extract-and-run --runtime-file "${RUNTIME}" "${APPDIR}" "${OUTPUT_FILE}" \
     2>/dev/null \
-    || "${APPIMAGETOOL}" "${APPDIR}" "${OUTPUT_FILE}"
+    || "${APPIMAGETOOL}" --runtime-file "${RUNTIME}" "${APPDIR}" "${OUTPUT_FILE}"
 
 chmod +x "${OUTPUT_FILE}"
 
