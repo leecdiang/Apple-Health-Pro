@@ -4,9 +4,7 @@
 
 A local desktop app and CLI for converting Apple Health exports into categorized CSV and JSON Lines.
 
-当前公开下载为 **v8.9.0**；main 分支包含尚未发布的 **v8.9.1** 修复，下面的下载包暂不包含这些修复。
-
-[下载 v8.9.0](https://github.com/leecdiang/Apple-Health-Pro/releases/tag/v8.9.0) · [CLI 文档](docs/cli.md) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/leecdiang/Apple-Health-Pro/issues)
+[下载 v8.9.1](https://github.com/leecdiang/Apple-Health-Pro/releases/tag/v8.9.1) · [CLI 文档](docs/cli.md) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/leecdiang/Apple-Health-Pro/issues)
 
 ## 界面
 
@@ -28,14 +26,14 @@ macOS 26+ 使用原生 Liquid Glass，较早 macOS 使用系统模糊材质；Wi
 
 ## 下载
 
-桌面版适合交互式 CSV 导出；独立 CLI 支持 CSV / JSONL，无需安装 Python 或 Qt。下面的文件均位于 [v8.9.0 Release](https://github.com/leecdiang/Apple-Health-Pro/releases/tag/v8.9.0)，附 `SHA256SUMS.txt`。
+桌面版适合交互式 CSV 导出；独立 CLI 支持 CSV / JSONL，无需安装 Python 或 Qt。下面的文件均位于 [v8.9.1 Release](https://github.com/leecdiang/Apple-Health-Pro/releases/tag/v8.9.1)，附 `SHA256SUMS.txt`。
 
 | 平台 | 桌面版 | 独立 CLI |
 | --- | --- | --- |
-| macOS Apple Silicon | `HealthPro_v8.9.0_macOS_AppleSilicon.dmg` | `HealthProCLI_v8.9.0_macOS_AppleSilicon.tar.gz` |
-| macOS Intel | `HealthPro_v8.9.0_macOS_Intel.dmg` | `HealthProCLI_v8.9.0_macOS_Intel.tar.gz` |
-| Windows x64 | `HealthPro_Setup_v8.9.0.exe` | `HealthProCLI_v8.9.0_Windows.exe` |
-| Linux x86_64 | `healthpro_8.9.0_amd64.deb` / `HealthPro-8.9.0-x86_64.AppImage` | `HealthProCLI_v8.9.0_Linux.tar.gz` |
+| macOS Apple Silicon | `HealthPro_v8.9.1_macOS_AppleSilicon.dmg` | `HealthProCLI_v8.9.1_macOS_AppleSilicon.tar.gz` |
+| macOS Intel | `HealthPro_v8.9.1_macOS_Intel.dmg` | `HealthProCLI_v8.9.1_macOS_Intel.tar.gz` |
+| Windows x64 | `HealthPro_Setup_v8.9.1.exe` | `HealthProCLI_v8.9.1_Windows.exe` |
+| Linux x86_64 | `healthpro_8.9.1_amd64.deb` / `HealthPro-8.9.1-x86_64.AppImage` | `HealthProCLI_v8.9.1_Linux.tar.gz` |
 
 macOS 包采用 ad-hoc 签名，尚未进行 Developer ID 公证。
 
@@ -64,8 +62,8 @@ mkdir -p output
 
 ```powershell
 New-Item -ItemType Directory -Force output | Out-Null
-.\HealthProCLI_v8.9.0_Windows.exe sources --input .\export.zip --quiet
-.\HealthProCLI_v8.9.0_Windows.exe export --input .\export.zip --output .\output --format jsonl
+.\HealthProCLI_v8.9.1_Windows.exe sources --input .\export.zip --quiet
+.\HealthProCLI_v8.9.1_Windows.exe export --input .\export.zip --output .\output --format jsonl
 ```
 
 ### 从源码运行
