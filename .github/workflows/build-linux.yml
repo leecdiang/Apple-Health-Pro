@@ -70,6 +70,9 @@ jobs:
       - name: Build AppImage
         run: bash linux/build_appimage.sh
 
+      - name: Verify final packages
+        run: python scripts/smoke_linux_packages.py "${{ steps.version.outputs.VERSION }}"
+
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:

@@ -1,7 +1,7 @@
 from pathlib import Path
 root = Path(SPECPATH)
 a = Analysis([str(root/'health_app.py')], pathex=[str(root)], binaries=[],
-             datas=[(str(root/'assets'), 'assets'),
+             datas=[(str(root/'icon.png'), '.'), (str(root/'assets'), 'assets'),
                     (str(root/'healthpro/version.txt'), 'healthpro')],
              hiddenimports=['PyQt6.QtSvg'], hookspath=[], hooksconfig={}, runtime_hooks=[],
              excludes=[], noarchive=False, optimize=0)

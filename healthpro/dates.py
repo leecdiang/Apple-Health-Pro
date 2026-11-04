@@ -5,6 +5,11 @@ from PyQt6.QtWidgets import QApplication, QFrame, QVBoxLayout, QHBoxLayout, QGri
 from .widgets import KeyboardButton
 
 
+def supported_date(day):
+    """Keep Qt navigation within the datetime.date export engine's range."""
+    return day.isValid() and 1 <= day.year() <= 9999
+
+
 class DayButton(KeyboardButton):
     def __init__(self, popup):
         super().__init__(popup)
@@ -133,29 +138,29 @@ class DatePopover(QFrame):
         first = self.month.addDays(1-self.month.dayOfWeek())
         for index, button in enumerate(self.days):
             button.day = first.addDays(index)
-            button.setEnabled(button.day.isValid())
+            button.setEnabled(supported_date(button.day))
             button.setText(str(button.day.day()))
             button.setAccessibleName(button.day.toString("yyyy年M月d日"))
             button.update()
-        self.previous.setEnabled(self.month.addMonths(-1).isValid())
-        self.next.setEnabled(self.month.addMonths(1).isValid())
+        self.previous.setEnabled(supported_date(self.month.addMonths(-1)))
+        self.next.setEnabled(supported_date(self.month.addMonths(1)))
 
     def change_month(self):
         year = self.year_picker.currentData()
         if year is not None:
             day = QDate(year, self.month_picker.currentIndex()+1, 1)
-            if day.isValid():
+            if supported_date(day):
                 self.month = day
                 self.refresh()
 
     def shift_month(self, offset):
         target = self.month.addMonths(offset)
-        if target.isValid():
+        if supported_date(target):
             self.month = target
             self.refresh()
 
     def focus_day(self, date):
-        if not date.isValid():
+        if not supported_date(date):
             return
         if (date.year(), date.month()) != (self.month.year(), self.month.month()):
             self.month = QDate(date.year(), date.month(), 1)
@@ -166,7 +171,7 @@ class DatePopover(QFrame):
                 break
 
     def choose(self, date):
-        if date.isValid():
+        if supported_date(date):
             self.owner.setDate(date)
             self.close()
 
@@ -194,7 +199,7 @@ class DateField(KeyboardButton):
         return QDate(self._date)
 
     def setDate(self, date):
-        if not date.isValid() or date == self._date:
+        if not supported_date(date) or date == self._date:
             return
         self._date = QDate(date)
         self.setText(date.toString("yyyy年M月d日"))

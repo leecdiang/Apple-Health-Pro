@@ -146,3 +146,22 @@ def test_cli_signal_cleanup_and_handler_restoration(tmp_path, monkeypatch, capsy
     output = capsys.readouterr()
     assert not output.out and 'Cancelled' in output.err
     assert not list(tmp_path.glob('HealthPro_*')) and not list(tmp_path.glob('.healthpro-*'))
+
+
+@pytest.mark.parametrize('failure', ['unknown-encoding', 'multibyte-encoding', 'corrupt-deflate'])
+def test_invalid_xml_or_compression_has_clean_diagnostic(tmp_path, failure):
+    xml = health(record())
+    if failure.endswith('encoding'):
+        encoding = 'x-not-an-encoding' if failure == 'unknown-encoding' else 'shift_jis'
+        xml = '<?xml version="1.0" encoding="'+encoding+'"?>'+xml
+    path = archive(tmp_path, xml, member='export.xml')
+    if failure == 'corrupt-deflate':
+        raw = bytearray(path.read_bytes())
+        raw[30+len('export.xml')] = 0xff
+        path.write_bytes(raw)
+    result = run_cli('export', '--input', path, '--output', tmp_path, '--quiet')
+    assert result.returncode == 1
+    assert result.stdout == ''
+    assert 'Error:' in result.stderr and 'Traceback' not in result.stderr
+    assert not list(tmp_path.glob('HealthPro_*'))
+    assert not list(tmp_path.glob('.healthpro-*'))

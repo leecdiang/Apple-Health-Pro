@@ -22,13 +22,11 @@ if [ -n "${VERSION_INPUT}" ] && [ "${VERSION_INPUT}" != "${VERSION}" ]; then
 fi
 
 # ----------------------------------------------------------
-# Step 1: Build binary with PyInstaller (if not already built)
+# Step 1: Rebuild from this checkout, never reuse an unverified dist directory.
 # ----------------------------------------------------------
-if [ ! -d "${DIST_DIR}" ]; then
-    echo "🔨 Building binary with PyInstaller..."
-    pip install -r requirements-linux.txt
-    pyinstaller HealthPro_linux.spec --clean --noconfirm
-fi
+echo "🔨 Building binary from current source with PyInstaller..."
+python3 -m pip install -r requirements-linux.txt
+python3 -m PyInstaller HealthPro_linux.spec --clean --noconfirm
 
 VERSION="${VERSION/rc/~rc}"
 PKG_DIR="build/${PKG_NAME}_${VERSION}_${ARCH}"
